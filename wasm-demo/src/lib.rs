@@ -244,6 +244,19 @@ pub fn run() {
         });
     }
 
+    // ---- viewport-changed → refresh ----
+    //
+    // First call to refresh() below runs before the browser has
+    // laid out the canvas (Slint reports 0×0 until the first frame
+    // is committed). The `changed` hooks in demo.slint re-fire
+    // viewport-changed once layout produces a real size, which is
+    // what actually paints the map. Also covers browser-window
+    // resize after that.
+    {
+        let refresh = Rc::clone(&refresh);
+        demo.on_viewport_changed(move || refresh());
+    }
+
     // ---- tile-ready → refresh ----
     //
     // Browser is single-threaded so the spawn_local task that

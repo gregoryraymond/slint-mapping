@@ -24,6 +24,14 @@ export component Demo inherits Window {
     out property <length> map-viewport-height: map.height;
     callback pan(length, length);
     callback zoom-by(float, length, length);
+    // Fired the moment the viewport's measured size changes — first
+    // layout (0 → real px), browser window resize, anything else
+    // that shifts MapEmbed's dimensions. The Rust side hooks this
+    // to (re)run refresh; without it the initial paint sticks
+    // because refresh() at startup gets a 0×0 viewport and bails.
+    callback viewport-changed();
+    changed map-viewport-width => { root.viewport-changed(); }
+    changed map-viewport-height => { root.viewport-changed(); }
 
     map := MapEmbed {
         width: 100%;
