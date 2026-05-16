@@ -1,0 +1,22 @@
+# GitHub reads this file to populate the "Sponsor" button at the top
+# of the repo page and the funding links shown when someone clicks it.
+# Every key is optional; list only the platforms you actually have
+# accounts on. Swap "gregoryraymond" below for the real handles
+# (Buy Me a Coffee username, GitHub Sponsors handle) once those are
+# set up.
+
+github: [gregoryraymond]
+buy_me_a_coffee: gregoryraymond
+
+# Other supported keys, for reference:
+# patreon: USERNAME
+# open_collective: USERNAME
+# ko_fi: USERNAME
+# tidelift: PLATFORM-NAME/PACKAGE-NAME (e.g. cargo/slint-mapping)
+# community_bridge: PROJECT-NAME
+# liberapay: USERNAME
+# issuehunt: USERNAME
+# lfx_crowdfunding: PROJECT-NAME
+# polar: USERNAME
+# thanks_dev: USERNAME
+# custom: ["https://example.com/donate"]
