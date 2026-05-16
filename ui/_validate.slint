@@ -1,0 +1,10 @@
+// Stub Window that exists only so slint-build has a Window-rooted entry
+// (every other exported component is a "stub" import). Not part of the
+// public API — consumers import `MapView` from `map.slint` directly.
+import { MapView } from "map.slint";
+
+export component _ValidateMapView inherits Window {
+    width: 1px;
+    height: 1px;
+    MapView {}
+}
