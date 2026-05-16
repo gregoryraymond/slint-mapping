@@ -1,0 +1,19 @@
+[package]
+name = "slint-mapping"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Map framework for Slint — interactive map component with tile rendering, panning, zooming, and marker overlays."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+slint = { version = "1", default-features = false, features = [
+    "compat-1-2",
+    "std",
+] }
+
+[build-dependencies]
+slint-build = "1"

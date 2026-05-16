@@ -1,0 +1,31 @@
+// Map — interactive map component.
+// =====================================================================
+//
+// Placeholder. Will grow to host:
+//   - tile rendering (raster slot for now; vector later)
+//   - pan / pinch-zoom touch handling
+//   - lat/lon ↔ pixel projection
+//   - marker / polyline / polygon overlays
+//
+// The Rust side owns map state (centre, zoom, tile cache) and pushes
+// rendered tiles into an `Image` slot here.
+
+export component MapView inherits Rectangle {
+    // Geographic centre (degrees, WGS84). Set by Rust; consumers can
+    // also bind these to follow the map's position after user pans.
+    in-out property <float> latitude: 0.0;
+    in-out property <float> longitude: 0.0;
+    in-out property <float> zoom: 2.0;
+
+    // The fully-composed map raster, supplied by the Rust-side renderer.
+    in property <image> tile-image;
+
+    background: #1a1a1a;
+
+    Image {
+        source: root.tile-image;
+        width: parent.width;
+        height: parent.height;
+        image-fit: ImageFit.preserve;
+    }
+}
