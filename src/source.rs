@@ -44,3 +44,20 @@ pub trait TileSource: Send + Sync {
         0
     }
 }
+
+// Blanket impl so a `Box<dyn TileSource>` is itself a `TileSource`,
+// letting consumers swap sources at runtime without writing a shim.
+impl<T: TileSource + ?Sized> TileSource for Box<T> {
+    fn tile(&self, key: TileKey) -> Option<slint::Image> {
+        (**self).tile(key)
+    }
+    fn tile_size(&self) -> u32 {
+        (**self).tile_size()
+    }
+    fn min_zoom(&self) -> u8 {
+        (**self).min_zoom()
+    }
+    fn max_zoom(&self) -> u8 {
+        (**self).max_zoom()
+    }
+}

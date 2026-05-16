@@ -5,4 +5,6 @@
 //! register it here.
 
 mod file;
+mod synthetic;
 pub use file::FileTileSource;
+pub use synthetic::SyntheticTileSource;

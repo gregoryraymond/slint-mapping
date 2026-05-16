@@ -17,3 +17,13 @@ slint = { version = "1", default-features = false, features = [
 
 [build-dependencies]
 slint-build = "1"
+
+[features]
+# Pulls in Slint's default desktop backend + Skia renderer so the
+# `viewer` example can open a real window. Off by default so consumers
+# (e.g. an Android app) don't have winit forced on them.
+viewer = ["slint/backend-default", "slint/renderer-skia"]
+
+[[example]]
+name = "viewer"
+required-features = ["viewer"]
