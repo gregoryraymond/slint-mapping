@@ -3,3 +3,10 @@ Cargo.lock
 *.swp
 *.swo
 .DS_Store
+
+# Playwright verification harness in wasm-demo/test/.
+node_modules/
+package-lock.json
+# Built wasm bundle + screenshots from local verify.js runs.
+/dist/
+wasm-demo/test/demo.png
