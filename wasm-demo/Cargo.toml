@@ -1,0 +1,33 @@
+[package]
+name = "slint-mapping-wasm-demo"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Browser demo for slint-mapping — pan/zoom OSM tiles + marker + polyline overlays compiled to wasm."
+publish = false
+
+# cdylib is what wasm-pack needs to emit the .wasm file; rlib lets
+# `cargo check` run normally without forcing a wasm build during
+# development. Build for production with:
+#   wasm-pack build --release --target web wasm-demo
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Slint needs the femtovg renderer on wasm (Skia doesn't compile to
+# wasm32-unknown-unknown). backend-winit is the supported wasm
+# backend; it bridges to the browser's canvas via winit-web.
+slint = { version = "1", default-features = false, features = [
+    "compat-1-2",
+    "std",
+    "backend-winit",
+    "renderer-femtovg",
+] }
+slint-mapping = { path = "..", default-features = false, features = ["wasm"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+
+[build-dependencies]
+slint-build = "1"

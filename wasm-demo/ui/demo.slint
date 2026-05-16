@@ -1,0 +1,39 @@
+// Browser demo entry. Declares one Window with a full-bleed MapEmbed
+// and the same property surface the Rust side wires against (camera,
+// tiles, layers, pan/zoom callbacks, plus the measured viewport size
+// the controller needs for projection / anchor maths).
+
+import { MapEmbed, Tile, Layer, Marker, Polyline } from "@mapping/map.slint";
+
+export component Demo inherits Window {
+    preferred-width: 800px;
+    preferred-height: 600px;
+    background: #1a1a1a;
+    title: "slint-mapping — live demo";
+
+    in-out property <float> latitude: 51.5074;
+    in-out property <float> longitude: -0.1276;
+    in-out property <float> zoom: 12.0;
+    in property <[Tile]> tiles;
+    in property <[Layer]> layers;
+    // The Rust controller reads these to project markers / lonlat
+    // anchors against the same viewport the renderer actually uses
+    // (not the window size — see slint-mapping's MapPanel for the
+    // hazard).
+    out property <length> map-viewport-width: map.width;
+    out property <length> map-viewport-height: map.height;
+    callback pan(length, length);
+    callback zoom-by(float, length, length);
+
+    map := MapEmbed {
+        width: 100%;
+        height: 100%;
+        latitude <=> root.latitude;
+        longitude <=> root.longitude;
+        zoom <=> root.zoom;
+        tiles: root.tiles;
+        layers: root.layers;
+        pan(dx, dy) => { root.pan(dx, dy); }
+        zoom-by(d, ax, ay) => { root.zoom-by(d, ax, ay); }
+    }
+}

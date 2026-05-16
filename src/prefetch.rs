@@ -11,7 +11,8 @@
 use crate::cache::TileCache;
 use crate::projection::lonlat_to_tile;
 use crate::source::TileKey;
-use crate::sources::osm::{fetch_bytes, format_url, OSM_TILE_URL};
+use crate::sources::osm::{fetch_bytes, OSM_TILE_URL};
+use crate::sources::util::format_url;
 
 /// Maximum zoom this function will fetch — guards against
 /// accidentally downloading hundreds of thousands of tiles. Override

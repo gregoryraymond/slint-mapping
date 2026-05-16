@@ -61,6 +61,7 @@
 
 use crate::cache::TileCache;
 use crate::source::{TileKey, TileSource};
+use crate::sources::util::{decode_png_to_buffer, format_url};
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::Read;
@@ -495,30 +496,6 @@ impl OsmTileSource {
 }
 
 // ---- internal helpers ----
-
-fn decode_png_to_buffer(bytes: &[u8]) -> Option<SharedPixelBuffer<Rgba8Pixel>> {
-    let img = image::load_from_memory(bytes).ok()?;
-    let rgba = img.to_rgba8();
-    let (w, h) = rgba.dimensions();
-    let mut buf = SharedPixelBuffer::<Rgba8Pixel>::new(w, h);
-    let dst = buf.make_mut_slice();
-    for (out, chunk) in dst.iter_mut().zip(rgba.chunks_exact(4)) {
-        *out = Rgba8Pixel {
-            r: chunk[0],
-            g: chunk[1],
-            b: chunk[2],
-            a: chunk[3],
-        };
-    }
-    Some(buf)
-}
-
-pub(crate) fn format_url(template: &str, key: TileKey) -> String {
-    template
-        .replace("{z}", &key.z.to_string())
-        .replace("{x}", &key.x.to_string())
-        .replace("{y}", &key.y.to_string())
-}
 
 pub(crate) fn fetch_bytes(url: &str, user_agent: &str) -> Result<Vec<u8>, String> {
     let resp = ureq::get(url)

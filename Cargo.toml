@@ -6,6 +6,13 @@ license = "MIT OR Apache-2.0"
 description = "Map framework for Slint — interactive map component with tile rendering, panning, zooming, and marker overlays."
 publish = false
 
+# Single-package workspace so the wasm-demo crate can live alongside
+# the library and consume it via `path = ".."`. Root crate stays the
+# library; sub-crates are demos / examples that aren't part of the
+# published API.
+[workspace]
+members = ["wasm-demo"]
+
 [lib]
 crate-type = ["rlib"]
 
@@ -29,6 +36,22 @@ image = { version = "0.25", default-features = false, features = ["png"], option
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
+# wasm-only dependencies — pulled in by the `wasm` feature, which
+# enables WasmOsmTileSource (browser-side OSM source). Kept under a
+# target-cfg block so a `cargo check` on a native target with `wasm`
+# in scope (e.g. cargo metadata in tooling) doesn't try to download
+# them. The actual feature gate is in [features] below.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+gloo-net = { version = "0.5", default-features = false, features = ["http"], optional = true }
+# Lets us store a `!Send` closure (e.g. one that captures `Rc<…>`) in
+# a struct that needs to satisfy `Send + Sync` for the TileSource
+# trait. SendWrapper is safe on single-threaded wasm because every
+# access happens on the same JS thread; it panics if dereferenced
+# from anywhere else, which on wasm32-unknown-unknown can't happen.
+send_wrapper = { version = "0.6", optional = true }
+
 [build-dependencies]
 slint-build = "1"
 
@@ -50,6 +73,13 @@ http = ["dep:ureq", "dep:image"]
 # kept as a separate feature so a consumer that only wants tile
 # rendering doesn't pull serde derive into their build.
 routing = ["dep:ureq", "dep:serde", "dep:serde_json"]
+# Enables WasmOsmTileSource — a browser-side OSM tile source that
+# uses gloo-net + wasm_bindgen_futures::spawn_local instead of ureq
+# + std::thread. Mutually exclusive with `http` in practice (ureq
+# doesn't compile to wasm32-unknown-unknown), but they don't conflict
+# at the Cargo level — leaving both on a wasm build just brings in
+# the dead native code in `osm.rs`.
+wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:gloo-net", "dep:send_wrapper", "dep:image"]
 
 [[example]]
 name = "viewer"

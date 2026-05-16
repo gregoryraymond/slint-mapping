@@ -1,0 +1,73 @@
+name: Deploy demo to GitHub Pages
+
+# Runs on every push to main (the demo is part of the README's
+# advertising surface, so keeping it in sync with main is the
+# priority) and on manual dispatch from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# GitHub Pages requires these scopes for the deploy step.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deploy at a time. New runs queue; we don't cancel
+# the in-progress one because deploys are quick and aborting them
+# can leave the site half-written.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Cache the workspace root so re-runs are fast — Slint +
+          # winit-web + femtovg are a sizeable compile.
+          workspaces: ". -> target"
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+
+      - name: Build wasm-demo
+        run: |
+          wasm-pack build --release --target web wasm-demo \
+            --out-dir ../dist/pkg \
+            --no-typescript
+
+      - name: Assemble static site
+        run: cp wasm-demo/web/index.html dist/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
