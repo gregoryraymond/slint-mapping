@@ -1,31 +1,80 @@
-// Map — interactive map component.
+// MapView — slippy-map style map widget.
 // =====================================================================
 //
-// Placeholder. Will grow to host:
-//   - tile rendering (raster slot for now; vector later)
-//   - pan / pinch-zoom touch handling
-//   - lat/lon ↔ pixel projection
-//   - marker / polyline / polygon overlays
+// Visible tiles are an `in property <[Tile]>` model fed by the Rust
+// side. Each `Tile` is positioned absolutely in MapView's coordinate
+// space; the Rust side computes which tiles overlap the viewport at
+// the current centre/zoom and pushes them into the model. Slint paints
+// each one as a regular `Image`, so the renderer handles compositing,
+// alpha blending, and transitions for free.
 //
-// The Rust side owns map state (centre, zoom, tile cache) and pushes
-// rendered tiles into an `Image` slot here.
+// Pan is a `flicked` callback on the inner TouchArea — Rust translates
+// the pixel delta into a lat/lon delta via the active projection and
+// updates `latitude` / `longitude` (which are in-out so they round-trip
+// to the consumer).
 
-export component MapView inherits Rectangle {
-    // Geographic centre (degrees, WGS84). Set by Rust; consumers can
-    // also bind these to follow the map's position after user pans.
+// One on-screen tile. `x` / `y` are pixel offsets relative to the
+// top-left of the MapView; `size` is the tile's edge length (typically
+// 256 px, but a source might use 512 for retina or vector rasterised).
+export struct Tile {
+    x: length,
+    y: length,
+    size: length,
+    image: image,
+}
+
+export component MapView inherits Window {
+    preferred-width: 800px;
+    preferred-height: 600px;
+    background: #1a1a1a;
+    title: "slint-mapping";
+
+    // ---- Camera (in-out so consumers can bind / observe) ----
     in-out property <float> latitude: 0.0;
     in-out property <float> longitude: 0.0;
     in-out property <float> zoom: 2.0;
 
-    // The fully-composed map raster, supplied by the Rust-side renderer.
-    in property <image> tile-image;
+    // ---- Tile model (Rust populates; one Image per tile) ----
+    in property <[Tile]> tiles;
 
-    background: #1a1a1a;
+    // ---- Interaction callbacks (Rust handles, updates lat/lon) ----
+    callback pan(length, length);       // (dx, dy) in pixels
+    callback zoom-by(float, length, length);  // (delta, anchor-x, anchor-y)
 
-    Image {
-        source: root.tile-image;
-        width: parent.width;
-        height: parent.height;
-        image-fit: ImageFit.preserve;
+    Rectangle {
+        clip: true;
+        width: 100%;
+        height: 100%;
+
+        // Tile layer.
+        for tile in root.tiles: Image {
+            x: tile.x;
+            y: tile.y;
+            width: tile.size;
+            height: tile.size;
+            source: tile.image;
+            image-fit: ImageFit.fill;
+        }
+
+        // Pan / pinch surface. Pinch isn't a native Slint gesture yet,
+        // so for now this is wheel-zoom + drag-pan only; touch-pinch
+        // comes when slint exposes multi-pointer.
+        TouchArea {
+            moved => {
+                if (self.pressed) {
+                    root.pan(
+                        self.mouse-x - self.pressed-x,
+                        self.mouse-y - self.pressed-y,
+                    );
+                }
+            }
+            scroll-event(event) => {
+                // event.delta-y is positive on scroll up (zoom in).
+                // Anchor zoom on the cursor so the point under the
+                // mouse stays under the mouse.
+                root.zoom-by(event.delta-y / 120px, self.mouse-x, self.mouse-y);
+                accept
+            }
+        }
     }
 }
