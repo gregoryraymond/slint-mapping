@@ -82,3 +82,48 @@ impl TileSource for FileTileSource {
         self.max_zoom
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_tile_returns_none() {
+        let src = FileTileSource::new("/definitely-does-not-exist-9b3a2c");
+        assert!(src.tile(TileKey { x: 0, y: 0, z: 0 }).is_none());
+    }
+
+    #[test]
+    fn sample_bundle_serves_world_tile() {
+        // The bundled OSM sample includes zoom 0-3; the (0,0,0) tile
+        // (the whole-world view) must load if the bundle is present.
+        let src = FileTileSource::new(crate::SAMPLE_TILES_DIR);
+        assert!(
+            src.tile(TileKey { x: 0, y: 0, z: 0 }).is_some(),
+            "sample bundle should serve the (0,0,0) world tile — \
+             did the bundle move or is the SAMPLE_TILES_DIR path wrong?"
+        );
+    }
+
+    #[test]
+    fn sample_bundle_serves_every_zoom_3_tile() {
+        // Spot-check the full zoom-3 grid (64 tiles) — they were all
+        // downloaded by the script.
+        let src = FileTileSource::new(crate::SAMPLE_TILES_DIR);
+        for x in 0..8u32 {
+            for y in 0..8u32 {
+                assert!(
+                    src.tile(TileKey { x, y, z: 3 }).is_some(),
+                    "missing sample tile (x={x}, y={y}, z=3)"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn zoom_range_overridable() {
+        let src = FileTileSource::new("/tmp").with_zoom_range(5, 14);
+        assert_eq!(src.min_zoom(), 5);
+        assert_eq!(src.max_zoom(), 14);
+    }
+}

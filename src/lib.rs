@@ -29,6 +29,7 @@
 
 slint::include_modules!();
 
+pub mod camera;
 pub mod controller;
 pub mod projection;
 pub mod source;

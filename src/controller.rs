@@ -12,7 +12,7 @@
 //! 4. Pushes the visible-tile model into the `MapView` after every
 //!    refresh.
 
-use crate::projection::{lonlat_to_tile, tile_to_lonlat};
+use crate::camera::{pan as camera_pan, zoom_anchored as camera_zoom_anchored};
 use crate::source::TileSource;
 use crate::viewport::visible_tiles;
 use crate::MapView;
@@ -66,18 +66,21 @@ impl MapController {
         }));
 
         // Wire the pan callback: pixel delta → camera shift in lat/lon.
-        // 1 tile = 360° / 2^z of longitude at zoom z; for lat we go
-        // via tile coordinates because Mercator is non-linear.
+        // All math lives in `crate::camera::pan` so it can be unit-tested.
         {
             let inner_cb = Rc::clone(&inner);
             map.on_pan(move |dx, dy| {
                 {
                     let mut i = inner_cb.borrow_mut();
-                    let tile_size = i.source.tile_size() as f64;
-                    let z = i.camera.zoom;
-                    let (tx, ty) = lonlat_to_tile(i.camera.longitude, i.camera.latitude, z);
-                    let (lon, lat) =
-                        tile_to_lonlat(tx - dx as f64 / tile_size, ty - dy as f64 / tile_size, z);
+                    let tile_size = i.source.tile_size();
+                    let (lon, lat) = camera_pan(
+                        i.camera.longitude,
+                        i.camera.latitude,
+                        i.camera.zoom,
+                        dx as f64,
+                        dy as f64,
+                        tile_size,
+                    );
                     i.camera.longitude = lon;
                     i.camera.latitude = lat;
                 }
@@ -92,40 +95,24 @@ impl MapController {
             map.on_zoom_by(move |delta, anchor_x, anchor_y| {
                 {
                     let mut i = inner_cb.borrow_mut();
-                    let tile_size = i.source.tile_size() as f64;
-                    let min_z = i.source.min_zoom() as f64;
-                    let max_z = i.source.max_zoom() as f64;
-
-                    // Capture lat/lon of the anchor point BEFORE the
-                    // zoom change so we can re-centre the camera so
-                    // the anchor stays under itself after zooming.
                     let Some(map) = i.map.upgrade() else { return };
                     let (vw, vh) = logical_size(&map);
-                    let z_before = i.camera.zoom;
-
-                    let (tx_centre, ty_centre) =
-                        lonlat_to_tile(i.camera.longitude, i.camera.latitude, z_before);
-                    let anchor_dx = anchor_x as f64 - vw / 2.0;
-                    let anchor_dy = anchor_y as f64 - vh / 2.0;
-                    let (anchor_lon, anchor_lat) = tile_to_lonlat(
-                        tx_centre + anchor_dx / tile_size,
-                        ty_centre + anchor_dy / tile_size,
-                        z_before,
+                    let (lon, lat, z) = camera_zoom_anchored(
+                        i.camera.longitude,
+                        i.camera.latitude,
+                        i.camera.zoom,
+                        delta as f64,
+                        anchor_x as f64,
+                        anchor_y as f64,
+                        vw,
+                        vh,
+                        i.source.tile_size(),
+                        i.source.min_zoom(),
+                        i.source.max_zoom(),
                     );
-
-                    let z_after = (z_before + delta as f64).clamp(min_z, max_z);
-
-                    let (tx_anchor_new, ty_anchor_new) =
-                        lonlat_to_tile(anchor_lon, anchor_lat, z_after);
-                    let (new_lon, new_lat) = tile_to_lonlat(
-                        tx_anchor_new - anchor_dx / tile_size,
-                        ty_anchor_new - anchor_dy / tile_size,
-                        z_after,
-                    );
-
-                    i.camera.longitude = new_lon;
-                    i.camera.latitude = new_lat;
-                    i.camera.zoom = z_after;
+                    i.camera.longitude = lon;
+                    i.camera.latitude = lat;
+                    i.camera.zoom = z;
                 }
                 refresh_inner(&inner_cb);
             });

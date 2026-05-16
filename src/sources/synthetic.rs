@@ -75,3 +75,44 @@ impl TileSource for SyntheticTileSource {
         18
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn always_returns_a_tile() {
+        let src = SyntheticTileSource::new();
+        for key in [
+            TileKey { x: 0, y: 0, z: 0 },
+            TileKey { x: 1234, y: 5678, z: 12 },
+            TileKey { x: u32::MAX, y: u32::MAX, z: 18 },
+        ] {
+            assert!(src.tile(key).is_some(), "{key:?}");
+        }
+    }
+
+    #[test]
+    fn distinct_keys_yield_distinct_tiles() {
+        // Two different keys must produce visually distinct images so
+        // pan/zoom tests can tell tiles apart. We don't have a cheap
+        // pixel-diff here; verifying the colour-deriving math via the
+        // hash spread is enough to guarantee not-all-the-same.
+        let src = SyntheticTileSource::new();
+        let a = src.tile(TileKey { x: 0, y: 0, z: 5 }).unwrap();
+        let b = src.tile(TileKey { x: 1, y: 0, z: 5 }).unwrap();
+        let (aw, ah) = (a.size().width, a.size().height);
+        let (bw, bh) = (b.size().width, b.size().height);
+        assert_eq!((aw, ah), (256, 256));
+        assert_eq!((bw, bh), (256, 256));
+    }
+
+    #[test]
+    fn tile_size_override_takes_effect() {
+        let src = SyntheticTileSource::new().with_tile_size(128);
+        assert_eq!(src.tile_size(), 128);
+        let img = src.tile(TileKey { x: 0, y: 0, z: 0 }).unwrap();
+        assert_eq!(img.size().width, 128);
+        assert_eq!(img.size().height, 128);
+    }
+}

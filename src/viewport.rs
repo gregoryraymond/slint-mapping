@@ -124,4 +124,51 @@ mod tests {
         assert!(xs.contains(&0));
         assert!(xs.contains(&1));
     }
+
+    #[test]
+    fn polar_extents_are_clipped() {
+        // North of Mercator's valid range (~85.05°) there are no
+        // tiles. With the camera centred at extreme high latitude and
+        // a tall viewport, we should NOT see tiles with y < 0 or
+        // y >= 2^z.
+        let z = 4u8;
+        let max_y = 1u32 << z;
+        let tiles = visible_tiles(0.0, 85.0, z as f64, 1024.0, 2048.0, 256);
+        for t in &tiles {
+            assert!(
+                t.key.y < max_y,
+                "y={} exceeds valid range at zoom {z}",
+                t.key.y
+            );
+        }
+    }
+
+    #[test]
+    fn every_tile_has_unique_pixel_position_at_centre_camera() {
+        // No two visible tiles should collide on (x, y) — would mean
+        // the viewport math placed them on top of each other.
+        let tiles = visible_tiles(0.0, 0.0, 3.0, 1024.0, 768.0, 256);
+        for (i, a) in tiles.iter().enumerate() {
+            for b in &tiles[i + 1..] {
+                let same_x = (a.x - b.x).abs() < 0.5;
+                let same_y = (a.y - b.y).abs() < 0.5;
+                assert!(
+                    !(same_x && same_y),
+                    "tiles {a:?} and {b:?} share a pixel slot"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn larger_viewport_returns_at_least_as_many_tiles() {
+        // Monotonicity: doubling the viewport size should never reduce
+        // the visible-tile count.
+        let small = visible_tiles(0.0, 0.0, 4.0, 512.0, 512.0, 256).len();
+        let big = visible_tiles(0.0, 0.0, 4.0, 1024.0, 1024.0, 256).len();
+        assert!(
+            big >= small,
+            "bigger viewport had fewer tiles ({big} vs {small})"
+        );
+    }
 }
