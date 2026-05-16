@@ -67,6 +67,13 @@ impl TileSource for FileTileSource {
             .join(key.z.to_string())
             .join(key.x.to_string())
             .join(format!("{}.{}", key.y, self.extension));
+        // Cheap existence check first — `Image::load_from_path` would
+        // otherwise log a noisy "Error loading image" line to stderr
+        // on every absent tile (e.g. tests that zoom past the
+        // available range, or any source still being populated).
+        if !path.exists() {
+            return None;
+        }
         slint::Image::load_from_path(&path).ok()
     }
 

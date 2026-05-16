@@ -18,6 +18,10 @@ slint = { version = "1", default-features = false, features = [
 [build-dependencies]
 slint-build = "1"
 
+[dev-dependencies]
+# Drives MapView from Rust tests without a real backend / event loop.
+i-slint-backend-testing = "1"
+
 [features]
 # Pulls in Slint's default desktop backend + Skia renderer so the
 # `viewer` example can open a real window. Off by default so consumers

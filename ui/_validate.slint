@@ -1,0 +1,30 @@
+// Window-rooted entry for slint-build. Re-exports `MapView` (Window),
+// `MapEmbed` (Rectangle, for Slint-level composition), `MapPageDemo`,
+// and `Tile` so external Slint files and `slint::include_modules!`
+// in src/lib.rs both see the same definitions.
+//
+// Without this Window-rooted entry, slint-build would compile
+// `map.slint` directly and emit a "no code will be generated for
+// MapEmbed" warning on every consumer build because slint refuses to
+// emit Rust bindings for non-Window exported components. Compiling
+// via this stub gives slint-build a Window-rooted file to anchor on;
+// the warning vanishes and the exports MapEmbed / MapPageDemo stay
+// available to external Slint consumers via `@mapping/map.slint`.
+
+import { MapView, MapEmbed, MapPageDemo, Tile } from "map.slint";
+
+// Re-export only the Window-rooted types + Tile. `MapEmbed` is the
+// non-Window component (intentionally — it's for Slint-level
+// embedding inside a consumer's own Window) and slint refuses to emit
+// Rust bindings for it. Re-exporting it here would re-trigger the
+// "no code will be generated for MapEmbed" warning on every build.
+// External Slint consumers import `MapEmbed` directly from
+// `@mapping/map.slint`; that path still works because map.slint
+// itself exports it.
+export { MapView, MapPageDemo, Tile }
+
+export component _ValidateEntry inherits Window {
+    width: 1px;
+    height: 1px;
+    MapEmbed {}
+}
