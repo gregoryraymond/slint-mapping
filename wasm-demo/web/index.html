@@ -40,7 +40,32 @@
     </style>
 </head>
 <body>
+    <!-- Slint's winit-web backend looks for a <canvas id="canvas">
+         element to attach to. Without one in the page, init() resolves
+         successfully but no rendering surface ever materialises — see
+         https://github.com/slint-ui/slint/blob/master/examples/slide_puzzle/index.html
+         for the canonical pattern. -->
+    <canvas id="canvas"></canvas>
     <div id="loading">Loading slint-mapping demo…</div>
+    <script type="module">
+        // Size the canvas to the viewport BEFORE init() runs. Slint
+        // honours whatever width/height attributes the canvas already
+        // has when it attaches; if we leave it default, the Window's
+        // preferred-width/height (800×600) wins and you get dark
+        // bands around a small canvas on wider viewports. Setting
+        // these here makes the map full-bleed at whatever size the
+        // browser window is.
+        const canvas = document.getElementById('canvas');
+        const sizeCanvas = () => {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.round(window.innerWidth * dpr);
+            canvas.height = Math.round(window.innerHeight * dpr);
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+        };
+        sizeCanvas();
+        window.addEventListener('resize', sizeCanvas);
+    </script>
     <script type="module">
         // `--target web` emits an ES module shim. The default export
         // `init()` resolves once the wasm has fetched and instantiated;

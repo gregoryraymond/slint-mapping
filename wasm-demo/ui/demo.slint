@@ -6,8 +6,13 @@
 import { MapEmbed, Tile, Layer, Marker, Polyline } from "@mapping/map.slint";
 
 export component Demo inherits Window {
-    preferred-width: 800px;
-    preferred-height: 600px;
+    // No preferred-width / preferred-height — on wasm those propagate
+    // to the canvas's width/height attributes and lock the rendering
+    // surface at that size regardless of the browser viewport, leaving
+    // dark bands around it. Without them, Slint honours whatever the
+    // <canvas> element was sized to before `init()` ran (the JS in
+    // index.html sizes it to window.innerWidth / window.innerHeight
+    // and re-sizes on browser resize).
     background: #1a1a1a;
     title: "slint-mapping — live demo";
 
