@@ -35,6 +35,14 @@ pub trait TileCache: Send + Sync {
     fn contains(&self, key: TileKey) -> bool {
         self.get(key).is_some()
     }
+
+    /// Read the raw bytes for a tile, if cached. Used by sources that
+    /// want to do their own (off-UI-thread) decoding rather than the
+    /// in-thread decode that `get` performs. Default returns `None` —
+    /// backends that store raw bytes (FileTileCache) should override.
+    fn get_bytes(&self, _key: TileKey) -> Option<Vec<u8>> {
+        None
+    }
 }
 
 /// Error returned by [`TileCache::put`].
@@ -119,6 +127,14 @@ impl TileCache for FileTileCache {
     fn contains(&self, key: TileKey) -> bool {
         self.path_for(key).exists()
     }
+
+    fn get_bytes(&self, key: TileKey) -> Option<Vec<u8>> {
+        let path = self.path_for(key);
+        if !path.exists() {
+            return None;
+        }
+        std::fs::read(&path).ok()
+    }
 }
 
 /// Read-through composite cache. `get` / `contains` try each layer
@@ -153,6 +169,9 @@ impl TileCache for LayeredTileCache {
     }
     fn contains(&self, key: TileKey) -> bool {
         self.layers.iter().any(|l| l.contains(key))
+    }
+    fn get_bytes(&self, key: TileKey) -> Option<Vec<u8>> {
+        self.layers.iter().find_map(|l| l.get_bytes(key))
     }
 }
 

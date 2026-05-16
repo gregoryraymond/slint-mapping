@@ -18,6 +18,11 @@ slint = { version = "1", default-features = false, features = [
 # fetching raster tiles. Gated behind the `http` feature so consumers
 # who only want offline tile bundles don't pull rustls in.
 ureq = { version = "2", default-features = false, features = ["tls"], optional = true }
+# Off-thread PNG decoding. Used by OsmTileSource's worker so the UI
+# thread never decodes — only wraps an already-decoded
+# SharedPixelBuffer via slint::Image::from_rgba8. PNG-only for now to
+# keep the dep small.
+image = { version = "0.25", default-features = false, features = ["png"], optional = true }
 
 [build-dependencies]
 slint-build = "1"
@@ -32,7 +37,9 @@ i-slint-backend-testing = "1"
 # (e.g. an Android app) don't have winit forced on them.
 viewer = ["slint/backend-default", "slint/renderer-skia"]
 # Enables OsmTileSource + prefetch::region (HTTP fetching via ureq).
-http = ["dep:ureq"]
+# Pulls `image` too because OsmTileSource decodes PNG bytes off the
+# UI thread into a SharedPixelBuffer for non-blocking refreshes.
+http = ["dep:ureq", "dep:image"]
 
 [[example]]
 name = "viewer"
