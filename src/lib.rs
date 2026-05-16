@@ -29,6 +29,7 @@
 
 slint::include_modules!();
 
+pub mod cache;
 pub mod camera;
 pub mod controller;
 pub mod projection;
@@ -36,6 +37,10 @@ pub mod source;
 pub mod sources;
 pub mod viewport;
 
+#[cfg(feature = "http")]
+pub mod prefetch;
+
+pub use cache::{CacheError, FileTileCache, LayeredTileCache, TileCache};
 pub use controller::MapController;
 pub use source::{TileKey, TileSource};
 

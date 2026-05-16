@@ -17,8 +17,18 @@ The tiles here cover:
     demos, which default to centring on London.
 
 Shipped in the repo so demos work without network access. For a
-different city or higher zoom, run `scripts/download-osm-region.py`
-with your own bbox + zoom range, or pull from another provider.
+different city or higher zoom, run the prefetch example:
+
+    cargo run --example prefetch --features http -- \
+        --dest sample-tiles --zoom 4-12 \
+        -74.05 40.70 -73.90 40.80                    # Manhattan
+
+Or use `slint_mapping::prefetch::region` directly from your own
+setup tool — see `examples/prefetch.rs` for the wiring.
+
+At runtime, point a `slint_mapping::sources::OsmTileSource` at a
+`FileTileCache` and tiles get lazy-fetched in the background as the
+camera pans into new regions; the cache fills up automatically.
 
 Other free providers worth considering for your own bundles:
 

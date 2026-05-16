@@ -8,3 +8,8 @@ mod file;
 mod synthetic;
 pub use file::FileTileSource;
 pub use synthetic::SyntheticTileSource;
+
+#[cfg(feature = "http")]
+pub(crate) mod osm;
+#[cfg(feature = "http")]
+pub use osm::{OsmTileSource, OSM_TILE_URL};

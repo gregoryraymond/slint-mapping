@@ -14,6 +14,10 @@ slint = { version = "1", default-features = false, features = [
     "compat-1-2",
     "std",
 ] }
+# Synchronous HTTP client used by OsmTileSource + prefetch::region for
+# fetching raster tiles. Gated behind the `http` feature so consumers
+# who only want offline tile bundles don't pull rustls in.
+ureq = { version = "2", default-features = false, features = ["tls"], optional = true }
 
 [build-dependencies]
 slint-build = "1"
@@ -27,6 +31,8 @@ i-slint-backend-testing = "1"
 # `viewer` example can open a real window. Off by default so consumers
 # (e.g. an Android app) don't have winit forced on them.
 viewer = ["slint/backend-default", "slint/renderer-skia"]
+# Enables OsmTileSource + prefetch::region (HTTP fetching via ureq).
+http = ["dep:ureq"]
 
 [[example]]
 name = "viewer"
@@ -35,3 +41,9 @@ required-features = ["viewer"]
 [[example]]
 name = "map_page"
 required-features = ["viewer"]
+
+[[bin]]
+name = "slint-mapping-prefetch"
+path = "src/bin/prefetch.rs"
+required-features = ["http"]
+
