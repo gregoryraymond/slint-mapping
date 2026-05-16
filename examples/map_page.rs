@@ -28,10 +28,11 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let win = MapPageDemo::new()?;
     win.set_query(SharedString::from(""));
-    // Start in central London at zoom 4.
+    // Start in central London at zoom 10 — sample bundle has London
+    // detail at zoom 4-12.
     win.set_longitude(-0.1276);
     win.set_latitude(51.5074);
-    win.set_zoom(4.0);
+    win.set_zoom(10.0);
 
     let tiles_model: Rc<VecModel<Tile>> = Rc::new(VecModel::from(Vec::new()));
     win.set_tiles(ModelRc::from(tiles_model.clone()));
