@@ -23,6 +23,11 @@ ureq = { version = "2", default-features = false, features = ["tls"], optional =
 # SharedPixelBuffer via slint::Image::from_rgba8. PNG-only for now to
 # keep the dep small.
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }
+# JSON deserialisation for OsrmRouter responses. Gated behind the
+# `routing` feature so consumers who only want tile rendering don't
+# pull serde derive machinery.
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 [build-dependencies]
 slint-build = "1"
@@ -40,6 +45,11 @@ viewer = ["slint/backend-default", "slint/renderer-skia"]
 # Pulls `image` too because OsmTileSource decodes PNG bytes off the
 # UI thread into a SharedPixelBuffer for non-blocking refreshes.
 http = ["dep:ureq", "dep:image"]
+# Enables OsrmRouter and the routing types. Shares ureq with the
+# `http` feature but adds serde for parsing OSRM's GeoJSON responses;
+# kept as a separate feature so a consumer that only wants tile
+# rendering doesn't pull serde derive into their build.
+routing = ["dep:ureq", "dep:serde", "dep:serde_json"]
 
 [[example]]
 name = "viewer"

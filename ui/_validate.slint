@@ -11,7 +11,7 @@
 // the warning vanishes and the exports MapEmbed / MapPageDemo stay
 // available to external Slint consumers via `@mapping/map.slint`.
 
-import { MapView, MapEmbed, MapPageDemo, Tile } from "map.slint";
+import { MapView, MapEmbed, MapPageDemo, MapPanel, Tile } from "map.slint";
 
 // Re-export only the Window-rooted types + Tile. `MapEmbed` is the
 // non-Window component (intentionally — it's for Slint-level
@@ -21,7 +21,7 @@ import { MapView, MapEmbed, MapPageDemo, Tile } from "map.slint";
 // External Slint consumers import `MapEmbed` directly from
 // `@mapping/map.slint`; that path still works because map.slint
 // itself exports it.
-export { MapView, MapPageDemo, Tile }
+export { MapView, MapPageDemo, MapPanel, Tile }
 
 export component _ValidateEntry inherits Window {
     width: 1px;

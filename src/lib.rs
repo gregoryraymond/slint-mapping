@@ -40,9 +40,19 @@ pub mod viewport;
 #[cfg(feature = "http")]
 pub mod prefetch;
 
+#[cfg(feature = "routing")]
+pub mod routers;
+#[cfg(feature = "routing")]
+pub mod routing;
+
 pub use cache::{CacheError, FileTileCache, LayeredTileCache, TileCache};
 pub use controller::MapController;
 pub use source::{TileKey, TileSource};
+
+#[cfg(feature = "routing")]
+pub use routing::{
+    Maneuver, ManeuverKind, Profile, Route, RouteError, RouteRequest, Router,
+};
 
 /// Filesystem path to this crate's `ui/` directory — the entry point
 /// Slint resolves `@mapping/...` library_paths imports against. Pass

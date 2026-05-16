@@ -43,6 +43,14 @@ pub trait TileSource: Send + Sync {
     fn min_zoom(&self) -> u8 {
         0
     }
+
+    /// Drop any queued (but not yet started) work for keys NOT in
+    /// `keep`. Default no-op — synchronous sources have no in-flight
+    /// work to cancel. Fetching / decoding implementations should
+    /// override this so rapidly-panning consumers don't accumulate
+    /// off-screen requests that waste bandwidth on tiles nobody will
+    /// see by the time they arrive.
+    fn cancel_all_except(&self, _keep: &std::collections::HashSet<TileKey>) {}
 }
 
 // Blanket impl so a `Box<dyn TileSource>` is itself a `TileSource`,
@@ -59,5 +67,8 @@ impl<T: TileSource + ?Sized> TileSource for Box<T> {
     }
     fn max_zoom(&self) -> u8 {
         (**self).max_zoom()
+    }
+    fn cancel_all_except(&self, keep: &std::collections::HashSet<TileKey>) {
+        (**self).cancel_all_except(keep)
     }
 }

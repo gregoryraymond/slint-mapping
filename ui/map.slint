@@ -30,6 +30,68 @@ export struct Tile {
     image: image,
 }
 
+// One marker overlay, projected into viewport pixels by the controller
+// before being handed to MapEmbed. Kept geometry-only so the renderer
+// can paint it without re-doing Web Mercator math in slint.
+//
+// Rendering:
+// - With `icon` set (any image whose `width > 0`): tinted SVG/PNG at
+//   `size`×`size`, centred on (x, y). `colour` is applied as the
+//   `colorize` so monochrome glyphs (Material / Phosphor / Lucide
+//   sets) recolour to whatever the layer wants. Pass an already-tinted
+//   image and any colour to suppress the recolour.
+// - Without `icon` (default empty image): filled circle of diameter
+//   `size` with a thin white ring + soft shadow. This is the
+//   fallback for "I just want a pin, no icon".
+//
+// Geographic positions ([lon, lat]) belong to the controller — see
+// `slint_mapping::viewport::lonlat_to_viewport_px` for projecting them
+// into the (x, y) this struct holds.
+export struct Marker {
+    x: length,
+    y: length,
+    size: length,
+    colour: color,
+    icon: image,
+}
+
+// One polyline overlay (route, GPS trace, area outline). `commands`
+// is an SVG path string in viewport-pixel units, built Rust-side from
+// a list of (lon, lat) points projected via
+// `slint_mapping::viewport::lonlat_to_viewport_px`. Format: "M x0 y0
+// L x1 y1 L x2 y2 …". Keeping path-building on the Rust side means
+// every repaint at a new camera position emits fresh commands without
+// any per-point reactive recomputation in slint.
+//
+// Visual: stroked, no fill. `colour` is the stroke colour, `width` is
+// the stroke width. Rendered above tiles and below markers (inside a
+// Layer, markers paint last so they sit on top of route lines).
+export struct Polyline {
+    commands: string,
+    colour: color,
+    width: length,
+}
+
+// A collection of overlay shapes that get painted on top of the tile
+// layer as a group. Modeled on the GeoJSON / Mapbox-style "layer"
+// concept: a single visual category (e.g. "saved places", "route") of
+// mixed shape types that the consumer can show/hide as a unit.
+// Polygons will join `polylines` + `markers` as a third field without
+// breaking existing layer-building code (slint struct fields default
+// to empty arrays when not set).
+//
+// Within a layer, paint order is: polylines first, markers last —
+// markers always sit on top of route lines so pins don't get hidden
+// under a thick route stroke.
+//
+// Across layers, paint order = array order: later entries draw on
+// top of earlier ones, so put background context layers first and
+// highlight layers last.
+export struct Layer {
+    markers: [Marker],
+    polylines: [Polyline],
+}
+
 // Rectangle-rooted core. Encapsulates the tile layer + gesture handling.
 // Embed this inside a parent Window when you need other chrome on top.
 export component MapEmbed inherits Rectangle {
@@ -37,38 +99,155 @@ export component MapEmbed inherits Rectangle {
     in-out property <float> longitude: 0.0;
     in-out property <float> zoom: 2.0;
     in property <[Tile]> tiles;
+    // Overlay layers, painted on top of the tile layer in array order.
+    // Geometry inside each layer (markers etc.) is already projected to
+    // viewport pixels by the controller — see
+    // `slint_mapping::viewport::lonlat_to_viewport_px` for the lon/lat
+    // → (x, y) conversion that should feed it.
+    in property <[Layer]> layers;
+    // Wheel-zoom over the map. Default on so desktop users get the
+    // standard map-app gesture. Set false to let the wheel fall through
+    // to an enclosing ScrollView (e.g. if you embed the map inside a
+    // longer scrollable page).
+    in property <bool> scroll-zoom: true;
     callback pan(length, length);              // (dx, dy) in pixels
     callback zoom-by(float, length, length);   // (delta, anchor-x, anchor-y)
+
+    // Incremental-pan bookkeeping: each `moved` event must emit only
+    // the delta since the *previous* move, not the cumulative drag
+    // from press-start. Storing the last-seen pointer position so the
+    // delta-emit-then-update step is correct.
+    private property <length> last-x;
+    private property <length> last-y;
 
     background: #1a1a1a;
     clip: true;
 
-    // Tile layer.
-    for tile in root.tiles: Image {
+    // Tile layer. Each visible cell is always painted — when its
+    // image isn't ready yet, we render a slightly lighter "loading"
+    // square (with a faint grid line) so the map area reads as
+    // "tiles arriving" rather than "missing data / off the world".
+    // The empty-image check uses `tile.image.width`, which a default
+    // `image` reports as 0px.
+    for tile in root.tiles: Rectangle {
         x: tile.x;
         y: tile.y;
         width: tile.size;
         height: tile.size;
-        source: tile.image;
-        image-fit: ImageFit.fill;
+        clip: true;
+        background: tile.image.width == 0 ? #262626 : transparent;
+        border-width: tile.image.width == 0 ? 1px : 0;
+        border-color: #303030;
+        if (tile.image.width > 0): Image {
+            width: parent.width;
+            height: parent.height;
+            source: tile.image;
+            image-fit: ImageFit.fill;
+        }
+        // Animated dot pulse so the placeholder doesn't look like a
+        // crashed tile. Single dot, centred, fading in and out.
+        if (tile.image.width == 0): Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: #6a6a6a;
+            opacity: 0.35 + 0.45 * abs(sin(animation-tick() / 1ms * 0.003 * 1rad));
+        }
+    }
+
+    // Overlay layers. Drawn above the tiles but below the TouchArea so
+    // pointer events pass through to the underlying map gestures. The
+    // outer `for` wraps each layer in a transparent full-bleed surface
+    // (slint's `for` body needs a single root element); inner `for`s
+    // emit the actual shapes. Add `for polygon`, `for line` here when
+    // those Layer fields land.
+    for layer in root.layers: Rectangle {
+        width: 100%;
+        height: 100%;
+        // Polylines first so markers paint on top — a route line
+        // crossing a destination pin shouldn't hide the pin. The
+        // viewbox locks the path's coordinate system to viewport
+        // pixels (commands are built Rust-side in those units) so
+        // there's no auto-scaling distortion when the path bounds
+        // don't match the parent's bounds.
+        for line in layer.polylines: Path {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: parent.height;
+            viewbox-x: 0;
+            viewbox-y: 0;
+            viewbox-width: parent.width / 1px;
+            viewbox-height: parent.height / 1px;
+            commands: line.commands;
+            stroke: line.colour;
+            stroke-width: line.width;
+            fill: transparent;
+        }
+        // Marker shapes: either a tinted icon (when `icon` is set) or
+        // a filled circle with a thin white ring + soft shadow as the
+        // no-icon fallback. The check uses `icon.width`, which a
+        // default `image` reports as 0px.
+        for marker in layer.markers: Rectangle {
+            x: marker.x - self.width / 2;
+            y: marker.y - self.height / 2;
+            width: marker.size;
+            height: marker.size;
+            // Icon variant — tinted SVG/PNG. The drop-shadow is on
+            // the wrapper Rectangle so it tracks the icon's bounding
+            // box, not the (possibly transparent) inner pixels.
+            drop-shadow-blur: 4px;
+            drop-shadow-color: #00000080;
+            drop-shadow-offset-y: 1px;
+            if (marker.icon.width > 0): Image {
+                width: parent.width;
+                height: parent.height;
+                source: marker.icon;
+                colorize: marker.colour;
+                image-fit: ImageFit.contain;
+            }
+            // Circle fallback — runs when no icon was supplied.
+            if (marker.icon.width == 0): Rectangle {
+                width: parent.width;
+                height: parent.height;
+                border-radius: self.width / 2;
+                background: marker.colour;
+                border-width: 2px;
+                border-color: white;
+            }
+        }
     }
 
     // Pan / scroll-zoom surface. Pinch-zoom waits on Slint exposing
     // multi-pointer touch.
-    TouchArea {
+    touch := TouchArea {
+        pointer-event(event) => {
+            // Reset the incremental anchor on press-down so the first
+            // `moved` after a press doesn't see a stale delta from a
+            // previous drag.
+            if (event.kind == PointerEventKind.down) {
+                root.last-x = self.mouse-x;
+                root.last-y = self.mouse-y;
+            }
+        }
         moved => {
             if (self.pressed) {
-                root.pan(
-                    self.mouse-x - self.pressed-x,
-                    self.mouse-y - self.pressed-y,
-                );
+                root.pan(self.mouse-x - root.last-x, self.mouse-y - root.last-y);
+                root.last-x = self.mouse-x;
+                root.last-y = self.mouse-y;
             }
         }
         scroll-event(event) => {
-            // event.delta-y is positive on scroll up. Anchor on the
-            // cursor so the point under the mouse stays under it.
-            root.zoom-by(event.delta-y / 120px, self.mouse-x, self.mouse-y);
-            accept
+            if (root.scroll-zoom) {
+                // event.delta-y is positive on scroll up. Anchor on the
+                // cursor so the point under the mouse stays under it.
+                root.zoom-by(event.delta-y / 120px, self.mouse-x, self.mouse-y);
+                accept
+            } else {
+                reject
+            }
         }
     }
 }
@@ -89,6 +268,7 @@ export component MapPageDemo inherits Window {
     in-out property <float> longitude: 0.0;
     in-out property <float> zoom: 2.0;
     in property <[Tile]> tiles;
+    in property <[Layer]> layers;
     in-out property <string> query;
     callback pan(length, length);
     callback zoom-by(float, length, length);
@@ -103,6 +283,7 @@ export component MapPageDemo inherits Window {
         longitude <=> root.longitude;
         zoom <=> root.zoom;
         tiles: root.tiles;
+        layers: root.layers;
         pan(dx, dy) => { root.pan(dx, dy); }
         zoom-by(d, ax, ay) => { root.zoom-by(d, ax, ay); }
     }
@@ -193,6 +374,74 @@ export component MapView inherits Window {
         longitude <=> root.longitude;
         zoom <=> root.zoom;
         tiles: root.tiles;
+        pan(dx, dy) => { root.pan(dx, dy); }
+        zoom-by(d, ax, ay) => { root.zoom-by(d, ax, ay); }
+    }
+}
+
+// Window-rooted "subwindow" wrapper that hosts MapEmbed inside surrounding
+// chrome — a titlebar at the top and a uniform border. The inner MapEmbed
+// is *not* at (0, 0) of the window: it's offset by `(border, titlebar_h +
+// border)` and sized smaller than the window. This is the use case where
+// gesture maths would break if either:
+//   - cursor coords were assumed to be window-local (they're TouchArea-local,
+//     i.e. MapEmbed-local — independent of MapEmbed's parent offset), or
+//   - the viewport size were assumed to be the window size (it's the
+//     MapEmbed's measured size — surfaced via `map-viewport-width` /
+//     `map-viewport-height` for the controller to read).
+//
+// Test target for `tests/subwindow.rs` — those tests verify the offset
+// MapEmbed reports the right viewport size and that anchor maths still
+// pins the cursor pixel after a zoom.
+export component MapPanel inherits Window {
+    preferred-width: 480px;
+    preferred-height: 360px;
+    background: #2a2d34;
+    title: "slint-mapping — map panel";
+
+    in-out property <float> latitude: 0.0;
+    in-out property <float> longitude: 0.0;
+    in-out property <float> zoom: 2.0;
+    in property <[Tile]> tiles;
+    in property <[Layer]> layers;
+    in property <string> panel-title: "Map";
+    callback pan(length, length);
+    callback zoom-by(float, length, length);
+    // MapEmbed's measured size — what a controller must use as the
+    // viewport for projection / anchor math, since it's NOT the
+    // window's size.
+    out property <length> map-viewport-width: embed.width;
+    out property <length> map-viewport-height: embed.height;
+
+    // Titlebar strip across the top.
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 32px;
+        background: #1a1d24;
+        Text {
+            x: 12px;
+            y: (parent.height - self.height) / 2;
+            text: root.panel-title;
+            color: #ffffffcc;
+            font-size: 13px;
+            font-weight: 700;
+        }
+    }
+
+    // The inner map — offset from the window origin by the titlebar
+    // height + a uniform 12 px border on the other three sides.
+    embed := MapEmbed {
+        x: 12px;
+        y: 32px + 12px;
+        width: parent.width - 24px;
+        height: parent.height - 32px - 24px;
+        latitude <=> root.latitude;
+        longitude <=> root.longitude;
+        zoom <=> root.zoom;
+        tiles: root.tiles;
+        layers: root.layers;
         pan(dx, dy) => { root.pan(dx, dy); }
         zoom-by(d, ax, ay) => { root.zoom-by(d, ax, ay); }
     }
