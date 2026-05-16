@@ -1,20 +1,27 @@
-// MapView — slippy-map style map widget.
+// MapView / MapEmbed — slippy-map style map widget.
 // =====================================================================
 //
+// Two entry points share the same internals:
+//
+//   - `MapView`  — a Window-rooted component. Use when the map IS the
+//     whole window. Easiest to drive from Rust (`MapController::new`
+//     takes a `&MapView`).
+//
+//   - `MapEmbed` — a Rectangle-rooted component. Use when the map is
+//     embedded inside a larger Slint scene (e.g. with a floating
+//     search card or a bottom sheet over the top). Has identical
+//     properties + callbacks to `MapView` so the same Rust controller
+//     drives it — see `examples/map_page.rs`.
+//
 // Visible tiles are an `in property <[Tile]>` model fed by the Rust
-// side. Each `Tile` is positioned absolutely in MapView's coordinate
+// side. Each `Tile` is positioned absolutely in the map's coordinate
 // space; the Rust side computes which tiles overlap the viewport at
 // the current centre/zoom and pushes them into the model. Slint paints
-// each one as a regular `Image`, so the renderer handles compositing,
-// alpha blending, and transitions for free.
-//
-// Pan is a `flicked` callback on the inner TouchArea — Rust translates
-// the pixel delta into a lat/lon delta via the active projection and
-// updates `latitude` / `longitude` (which are in-out so they round-trip
-// to the consumer).
+// each one as a regular `Image`, so the renderer handles compositing
+// and alpha blending for free.
 
 // One on-screen tile. `x` / `y` are pixel offsets relative to the
-// top-left of the MapView; `size` is the tile's edge length (typically
+// top-left of the map; `size` is the tile's edge length (typically
 // 256 px, but a source might use 512 for retina or vector rasterised).
 export struct Tile {
     x: length,
@@ -23,58 +30,170 @@ export struct Tile {
     image: image,
 }
 
+// Rectangle-rooted core. Encapsulates the tile layer + gesture handling.
+// Embed this inside a parent Window when you need other chrome on top.
+export component MapEmbed inherits Rectangle {
+    in-out property <float> latitude: 0.0;
+    in-out property <float> longitude: 0.0;
+    in-out property <float> zoom: 2.0;
+    in property <[Tile]> tiles;
+    callback pan(length, length);              // (dx, dy) in pixels
+    callback zoom-by(float, length, length);   // (delta, anchor-x, anchor-y)
+
+    background: #1a1a1a;
+    clip: true;
+
+    // Tile layer.
+    for tile in root.tiles: Image {
+        x: tile.x;
+        y: tile.y;
+        width: tile.size;
+        height: tile.size;
+        source: tile.image;
+        image-fit: ImageFit.fill;
+    }
+
+    // Pan / scroll-zoom surface. Pinch-zoom waits on Slint exposing
+    // multi-pointer touch.
+    TouchArea {
+        moved => {
+            if (self.pressed) {
+                root.pan(
+                    self.mouse-x - self.pressed-x,
+                    self.mouse-y - self.pressed-y,
+                );
+            }
+        }
+        scroll-event(event) => {
+            // event.delta-y is positive on scroll up. Anchor on the
+            // cursor so the point under the mouse stays under it.
+            root.zoom-by(event.delta-y / 120px, self.mouse-x, self.mouse-y);
+            accept
+        }
+    }
+}
+
+// Window-rooted demo that shows MapEmbed inside a richer layout — a
+// floating search card pinned at the top and an "info" card at the
+// bottom, both over a full-bleed map. Modeled on the MapPage from
+// slint-mobile-components/crates/pages-travel/ui/map.slint. Surfaces
+// the same `pan`/`zoom-by` callbacks as MapView so MapController
+// drives it identically.
+export component MapPageDemo inherits Window {
+    preferred-width: 412px;
+    preferred-height: 892px;
+    background: #1a1a1a;
+    title: "slint-mapping — MapPage demo";
+
+    in-out property <float> latitude: 0.0;
+    in-out property <float> longitude: 0.0;
+    in-out property <float> zoom: 2.0;
+    in property <[Tile]> tiles;
+    in-out property <string> query;
+    callback pan(length, length);
+    callback zoom-by(float, length, length);
+
+    // ----- Map (fills the window) -----
+    MapEmbed {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        latitude <=> root.latitude;
+        longitude <=> root.longitude;
+        zoom <=> root.zoom;
+        tiles: root.tiles;
+        pan(dx, dy) => { root.pan(dx, dy); }
+        zoom-by(d, ax, ay) => { root.zoom-by(d, ax, ay); }
+    }
+
+    // ----- Floating search card (top) -----
+    Rectangle {
+        x: 16px;
+        y: 48px;
+        width: parent.width - 32px;
+        height: 52px;
+        background: #ffffffee;
+        border-radius: 12px;
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #00000066;
+        drop-shadow-offset-y: 6px;
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            spacing: 8px;
+            alignment: stretch;
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 1;
+                Text {
+                    text: root.query == "" ? "Search the map" : root.query;
+                    color: root.query == "" ? #888888 : #111111;
+                    font-size: 15px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // ----- Info card (bottom) — shows live camera state -----
+    Rectangle {
+        x: 16px;
+        y: parent.height - self.height - 24px;
+        width: parent.width - 32px;
+        height: 80px;
+        background: #1a1d24ee;
+        border-radius: 12px;
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #00000066;
+        drop-shadow-offset-y: 6px;
+        VerticalLayout {
+            padding: 12px;
+            spacing: 4px;
+            Text {
+                text: "Camera";
+                color: #ffffff99;
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 1px;
+            }
+            Text {
+                text: "lat " + round(root.latitude * 10000) / 10000
+                    + "   lon " + round(root.longitude * 10000) / 10000
+                    + "   z " + round(root.zoom * 10) / 10;
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 700;
+                font-family: "Consolas";
+            }
+        }
+    }
+}
+
+// Window-rooted convenience wrapper. Same properties + callbacks as
+// MapEmbed, forwarded into it.
 export component MapView inherits Window {
     preferred-width: 800px;
     preferred-height: 600px;
     background: #1a1a1a;
     title: "slint-mapping";
 
-    // ---- Camera (in-out so consumers can bind / observe) ----
     in-out property <float> latitude: 0.0;
     in-out property <float> longitude: 0.0;
     in-out property <float> zoom: 2.0;
-
-    // ---- Tile model (Rust populates; one Image per tile) ----
     in property <[Tile]> tiles;
+    callback pan(length, length);
+    callback zoom-by(float, length, length);
 
-    // ---- Interaction callbacks (Rust handles, updates lat/lon) ----
-    callback pan(length, length);       // (dx, dy) in pixels
-    callback zoom-by(float, length, length);  // (delta, anchor-x, anchor-y)
-
-    Rectangle {
-        clip: true;
+    embed := MapEmbed {
         width: 100%;
         height: 100%;
-
-        // Tile layer.
-        for tile in root.tiles: Image {
-            x: tile.x;
-            y: tile.y;
-            width: tile.size;
-            height: tile.size;
-            source: tile.image;
-            image-fit: ImageFit.fill;
-        }
-
-        // Pan / pinch surface. Pinch isn't a native Slint gesture yet,
-        // so for now this is wheel-zoom + drag-pan only; touch-pinch
-        // comes when slint exposes multi-pointer.
-        TouchArea {
-            moved => {
-                if (self.pressed) {
-                    root.pan(
-                        self.mouse-x - self.pressed-x,
-                        self.mouse-y - self.pressed-y,
-                    );
-                }
-            }
-            scroll-event(event) => {
-                // event.delta-y is positive on scroll up (zoom in).
-                // Anchor zoom on the cursor so the point under the
-                // mouse stays under the mouse.
-                root.zoom-by(event.delta-y / 120px, self.mouse-x, self.mouse-y);
-                accept
-            }
-        }
+        latitude <=> root.latitude;
+        longitude <=> root.longitude;
+        zoom <=> root.zoom;
+        tiles: root.tiles;
+        pan(dx, dy) => { root.pan(dx, dy); }
+        zoom-by(d, ax, ay) => { root.zoom-by(d, ax, ay); }
     }
 }

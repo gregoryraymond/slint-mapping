@@ -27,3 +27,7 @@ viewer = ["slint/backend-default", "slint/renderer-skia"]
 [[example]]
 name = "viewer"
 required-features = ["viewer"]
+
+[[example]]
+name = "map_page"
+required-features = ["viewer"]
