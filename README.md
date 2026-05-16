@@ -221,7 +221,7 @@ If slint-mapping has been useful — saved you a weekend of writing
 your own tile fetcher, made a demo possible, anything — a coffee
 keeps weekend hacking time available for it.
 
-[![Buy me a coffee](https://img.shields.io/badge/buy_me_a_coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000&style=for-the-badge)](https://www.buymeacoffee.com/gregoryraymond)
+[![Buy me a coffee](https://img.shields.io/badge/buy_me_a_coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000&style=for-the-badge)](https://buymeacoffee.com/gregoryraymond)
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub-sponsor-EA4AAA?logo=github-sponsors&logoColor=white&style=for-the-badge)](https://github.com/sponsors/gregoryraymond)
 
 One-offs are great. If you're a company shipping this in a product,
