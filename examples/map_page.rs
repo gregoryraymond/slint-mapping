@@ -20,15 +20,10 @@ use std::rc::Rc;
 
 fn main() -> Result<(), slint::PlatformError> {
     let arg = std::env::args().nth(1);
-    let source: Box<dyn TileSource> = match arg {
-        Some(path) => {
-            eprintln!("Reading tiles from {path}");
-            Box::new(FileTileSource::new(path))
-        }
-        None => {
-            eprintln!("No tile directory given — using synthetic source.");
-            Box::new(SyntheticTileSource::new())
-        }
+    let source: Box<dyn TileSource> = match arg.as_deref() {
+        Some("--synthetic") => Box::new(SyntheticTileSource::new()),
+        Some(path) => Box::new(FileTileSource::new(path)),
+        None => Box::new(FileTileSource::new(slint_mapping::SAMPLE_TILES_DIR)),
     };
 
     let win = MapPageDemo::new()?;

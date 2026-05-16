@@ -1,0 +1,31 @@
+Tile imagery in this directory is © OpenStreetMap contributors and
+distributed under the Open Database License (ODbL).
+
+  https://www.openstreetmap.org/copyright
+
+Tiles were rendered by the OpenStreetMap Foundation's standard tile
+server (https://tile.openstreetmap.org) and downloaded by
+`scripts/download-osm-tiles.sh`. Any application that displays them
+must show this attribution prominently.
+
+The 85 tiles here cover zoom levels 0–3 (the whole world; the tiniest
+slippy-map subset that still covers every place on Earth). They're
+shipped in the repo so demos work without network access; for higher
+zoom or regional detail, re-run the download script with a higher
+`max-zoom` argument or pull from another provider.
+
+Other free providers worth considering for your own bundles:
+
+  - Stadia Maps         https://stadiamaps.com/  (free tier, attribution)
+  - MapTiler            https://www.maptiler.com/ (free tier, attribution)
+  - Wikimedia Maps      https://maps.wikimedia.org/ (CC-BY-SA)
+  - OpenStreetMap.de    https://www.openstreetmap.de/karte.html  (German hosted OSM)
+  - HOT OSM exports     https://export.hotosm.org/  (raw data, render yourself)
+  - OpenMapTiles        https://openmaptiles.org/  (downloadable MBTiles)
+  - Stamen / Stadia toner & terrain (CC-BY 3.0, attribution)
+
+The OSM tile server's usage policy
+(https://operations.osmfoundation.org/policies/tiles/) explicitly
+forbids "heavy use" and bulk redistribution as a service. For
+production traffic, use one of the paid providers above or self-host
+via tilemaker / TileServer GL.

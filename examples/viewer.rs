@@ -13,15 +13,22 @@ use slint_mapping::{MapController, MapView, TileSource};
 
 fn main() -> Result<(), slint::PlatformError> {
     let arg = std::env::args().nth(1);
-    let source: Box<dyn TileSource> = match arg {
+    let source: Box<dyn TileSource> = match arg.as_deref() {
+        Some("--synthetic") => {
+            eprintln!("Using SyntheticTileSource (colored test tiles).");
+            Box::new(SyntheticTileSource::new())
+        }
         Some(path) => {
             eprintln!("Reading tiles from {path}");
             Box::new(FileTileSource::new(path))
         }
         None => {
-            eprintln!("No tile directory given — using synthetic source.");
-            eprintln!("(Pass a slippy-map dir to use real tiles: `cargo run --example viewer --features viewer -- /path/to/tiles`)");
-            Box::new(SyntheticTileSource::new())
+            eprintln!(
+                "No tile directory given — using bundled sample tiles at {}",
+                slint_mapping::SAMPLE_TILES_DIR
+            );
+            eprintln!("(Pass `--synthetic` for test tiles, or a slippy-map dir for your own bundle.)");
+            Box::new(FileTileSource::new(slint_mapping::SAMPLE_TILES_DIR))
         }
     };
 
