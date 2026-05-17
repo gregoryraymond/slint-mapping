@@ -220,8 +220,41 @@ export component MapEmbed inherits Rectangle {
         }
     }
 
-    // Pan / scroll-zoom surface. Pinch-zoom waits on Slint exposing
-    // multi-pointer touch.
+    // Native pinch handler. Slint 1.16+'s ScaleRotateGestureHandler
+    // fires when the platform sends a PinchGesture event up the input
+    // tree. Coverage today: macOS + iOS (winit emits it from trackpad
+    // / multitouch); silently dormant on Android and web until
+    // winit-android and winit-web grow the same support. The
+    // `updated` callback feeds into the same `zoom-by` plumbing the
+    // wheel handler uses, so a Mac trackpad pinch zooms identically
+    // to a mouse-wheel scroll without any extra controller wiring.
+    //
+    // Mapping: `scale` is the cumulative ratio since gesture start
+    // (1.0 == no change, 2.0 == doubled). `log2(scale)` turns that
+    // into a zoom-level delta because each integer zoom step doubles
+    // the tile resolution. We track the previous scale so we emit
+    // incremental deltas rather than cumulative ones — the
+    // `zoom-by` callback expects deltas.
+    private property <float> last-pinch-scale: 1.0;
+    pinch := ScaleRotateGestureHandler {
+        started => {
+            root.last-pinch-scale = 1.0;
+        }
+        updated => {
+            if (root.scroll-zoom && self.scale > 0) {
+                root.zoom-by(
+                    log(self.scale / root.last-pinch-scale, 2),
+                    self.center.x,
+                    self.center.y,
+                );
+                root.last-pinch-scale = self.scale;
+            }
+        }
+    }
+
+    // Pan / scroll-zoom surface. Pinch comes in via ScaleRotateGestureHandler
+    // (above) on platforms that support it natively, and via synthetic
+    // wheel events from JS on wasm — see wasm-demo/web/index.html.
     touch := TouchArea {
         pointer-event(event) => {
             // Reset the incremental anchor on press-down so the first

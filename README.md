@@ -84,7 +84,14 @@ you've taken the app somewhere with no signal.
 
 ## 🚧 What's missing
 
-Pinch-zoom waits on Slint exposing multi-pointer touch events.
+Pinch-zoom on wasm and Android works through a small platform-specific
+shim that calls into the same `zoom_by` callback the mouse-wheel path
+uses — see [`docs/android-pinch.md`](docs/android-pinch.md) for the
+Android setup and `wasm-demo/web/index.html` for the wasm one.
+Native trackpad pinch on macOS / iOS Just Works via
+`ScaleRotateGestureHandler`; same handler lights up on Android the day
+winit-android grows `WindowEvent::PinchGesture` support.
+
 Polygon fills need upstream improvements to Slint's `Path`; only
 stroked polylines work today. Vector tiles (MVT) would be another
 `TileSource` impl and nobody has asked for them yet. On-device

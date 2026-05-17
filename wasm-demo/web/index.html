@@ -65,13 +65,85 @@
         };
         sizeCanvas();
         window.addEventListener('resize', sizeCanvas);
+
+        // ---- Pinch-zoom (wasm side) ----------------------------------
+        //
+        // Slint's ScaleRotateGestureHandler relies on the platform
+        // emitting a PinchGesture event, which winit-web currently
+        // doesn't synthesise from browser pointer events (only macOS
+        // and iOS get them natively). So we detect pinch ourselves
+        // here in JS using the Pointer Events API, then translate it
+        // into synthetic WheelEvents on the canvas — Slint's existing
+        // TouchArea.scroll-event already converts those into our
+        // `zoom-by(delta, anchor-x, anchor-y)` callback, so the whole
+        // map zooming pipeline gets reused for free.
+        //
+        // Mapping: each frame of a two-pointer pinch produces a scale
+        // ratio (currentDistance / lastDistance). We feed `log2(ratio)`
+        // multiplied by the same 120-per-notch factor wheel events
+        // use, so a 2× pinch == one full wheel notch zoom. Anchor goes
+        // at the midpoint between the two pointers.
+        const activePointers = new Map(); // pointerId → { x, y }
+        let lastPinchDistance = null;
+
+        const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+        const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.pointerType !== 'touch') return;
+            try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (activePointers.size === 2) {
+                const [a, b] = [...activePointers.values()];
+                lastPinchDistance = distance(a, b);
+            }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!activePointers.has(e.pointerId)) return;
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (activePointers.size === 2 && lastPinchDistance !== null) {
+                const [a, b] = [...activePointers.values()];
+                const newDistance = distance(a, b);
+                if (newDistance < 1 || lastPinchDistance < 1) return;
+                const ratio = newDistance / lastPinchDistance;
+                if (Math.abs(ratio - 1) < 0.005) return;
+                const mid = midpoint(a, b);
+                // log2(ratio) is the zoom-level delta. Positive scale
+                // (pinch-out) → positive delta → zoom in. Slint's
+                // zoom-by callback expects that same sign convention.
+                const delta = Math.log2(ratio);
+                // Call directly into Rust via the wasm-bindgen export
+                // in wasm-demo/src/lib.rs::pinch_zoom. This bypasses
+                // Slint's TouchArea wheel pipeline (which doesn't
+                // pick up synthetic OR real wheel events reliably on
+                // wasm) and invokes the same zoom-by callback.
+                if (typeof pinch_zoom === 'function') {
+                    pinch_zoom(delta, mid.x, mid.y);
+                }
+                lastPinchDistance = newDistance;
+            }
+        });
+
+        const endPointer = (e) => {
+            if (!activePointers.has(e.pointerId)) return;
+            activePointers.delete(e.pointerId);
+            if (activePointers.size < 2) lastPinchDistance = null;
+        };
+        canvas.addEventListener('pointerup', endPointer);
+        canvas.addEventListener('pointercancel', endPointer);
+        canvas.addEventListener('pointerleave', endPointer);
     </script>
     <script type="module">
         // `--target web` emits an ES module shim. The default export
         // `init()` resolves once the wasm has fetched and instantiated;
         // the `#[wasm_bindgen(start)]` entry in lib.rs runs as part of
         // that resolution.
-        import init from './pkg/slint_mapping_wasm_demo.js';
+        import init, { pinch_zoom, current_zoom } from './pkg/slint_mapping_wasm_demo.js';
+        // Expose so the pinch detector in the earlier <script> block
+        // can reach it; that script ran first and only sees globals.
+        window.pinch_zoom = pinch_zoom;
+        window.current_zoom = current_zoom;
 
         // winit's web backend yields control back to the browser
         // event loop by *throwing* a JS exception with this exact

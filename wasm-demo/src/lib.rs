@@ -32,6 +32,17 @@ use wasm_bindgen::prelude::*;
 
 slint::include_modules!();
 
+// Weak handle to the live Demo window, stored at run() time. Lets the
+// JS-side pinch detector reach into the Slint scene and invoke the
+// existing zoom-by callback directly, instead of trying to round-trip
+// the gesture through synthetic WheelEvents (which Slint's TouchArea
+// doesn't always pick up on wasm). Thread-local because we're
+// single-threaded on wasm32 and slint::Weak isn't Send anyway.
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    static DEMO_HANDLE: RefCell<Option<slint::Weak<Demo>>> = const { RefCell::new(None) };
+}
+
 /// Authoritative camera state mirrored into the Slint `Demo` window's
 /// `latitude` / `longitude` / `zoom` properties on every refresh.
 #[derive(Clone, Copy)]
@@ -61,6 +72,13 @@ pub fn run() {
     console_error_panic_hook::set_once();
 
     let demo = Demo::new().expect("create Demo window");
+
+    // Stash a weak handle so the wasm-exported `pinch_zoom` below can
+    // reach back into the scene from a JS-driven gesture without
+    // having to round-trip through the slint event loop or our
+    // shared-state refresh closure.
+    #[cfg(target_arch = "wasm32")]
+    DEMO_HANDLE.with(|h| *h.borrow_mut() = Some(demo.as_weak()));
 
     // Centre on London at z=12 so tiles render straight away over a
     // recognisable city. Mirrored to Slint properties at the bottom
@@ -283,4 +301,39 @@ pub fn run() {
     // event loop from here); on a native dev build it blocks like
     // any other Slint app.
     demo.run().expect("run Slint event loop");
+}
+
+/// Drive the same `zoom-by` callback the wheel handler would, but
+/// from JavaScript. Used by `wasm-demo/web/index.html`'s pinch
+/// detector — synthesised wheel events don't reliably reach Slint's
+/// TouchArea on wasm, so we cut out the middleman.
+///
+/// Arguments are: zoom-level delta (positive == zoom in, negative ==
+/// out, one unit == one tile-zoom level), and anchor pixel in
+/// canvas-local CSS coordinates.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn pinch_zoom(delta: f32, anchor_x: f32, anchor_y: f32) -> f32 {
+    DEMO_HANDLE.with(|h| {
+        let Some(weak) = h.borrow().clone() else { return -1.0 };
+        let Some(demo) = weak.upgrade() else { return -2.0 };
+        demo.invoke_zoom_by(delta, anchor_x, anchor_y);
+        demo.window().request_redraw();
+        demo.get_zoom()
+    })
+}
+
+/// Debug accessor: current camera zoom level. Exposed to JS so the
+/// Playwright verification can confirm pinch_zoom actually moved the
+/// camera (independent of whether the canvas has visually repainted).
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn current_zoom() -> f32 {
+    DEMO_HANDLE.with(|h| {
+        h.borrow()
+            .as_ref()
+            .and_then(|w| w.upgrade())
+            .map(|d| d.get_zoom())
+            .unwrap_or(-1.0)
+    })
 }

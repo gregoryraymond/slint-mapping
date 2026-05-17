@@ -1,0 +1,23 @@
+[package]
+name = "slint-android-gestures"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Reusable multi-touch gesture detection for Slint apps on Android. Bridges raw MotionEvents (via a small Kotlin shim) into a safe Rust callback API."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+# Intentionally no slint dep. The crate's job is to convert raw
+# touch into a Rust-callback API — it stays slint-version-agnostic
+# so consumers can update slint freely without coordinating with us.
+# The consumer's own callback is where slint::Window properties get
+# touched (via slint::invoke_from_event_loop).
+
+[target.'cfg(target_os = "android")'.dependencies]
+# jni 0.21 matches what slint's android backend uses transitively,
+# so consumers won't end up with two jni versions in their build.
+jni = { version = "0.21", default-features = false }
+log = "0.4"
