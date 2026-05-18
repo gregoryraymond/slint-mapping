@@ -45,6 +45,7 @@ install-publish-tools:
     cargo install --locked cargo-public-api
     cargo install --locked cargo-release
     cargo install --locked typos-cli
+    cargo install --locked trunk
 
 # Detect breaking API changes since the last released version.
 semver-check:
@@ -96,25 +97,20 @@ release LEVEL="patch":
     cargo release {{LEVEL}} --execute
 
 ## ─── Local wasm preview ────────────────────────────────────────────
+##
+## `trunk` builds the wasm-demo, serves it on a local port, and
+## auto-reloads the browser on source changes — single tool, no
+## Python / Node / wasm-pack juggling. Install once with
+## `cargo install trunk` (or via `just install-publish-tools`,
+## which now bundles it in).
 
-# Build the wasm-demo and assemble dist/ exactly the way the Pages
-# workflow does, then serve it on http://localhost:8765 so you can
-# open it in a browser. Without an HTTP server, opening dist/index.html
-# directly via file:// fails — ES modules + WebAssembly both refuse to
-# load from file:// for security reasons.
-serve PORT="8765":
-    wasm-pack build --release --target web wasm-demo \
-        --out-dir ../dist/pkg --no-typescript
-    cp wasm-demo/web/index.html dist/index.html
-    @echo ""
-    @echo "──────────────────────────────────────────────"
-    @echo "  Serving on http://localhost:{{PORT}}/"
-    @echo "  Stop with Ctrl-C."
-    @echo "──────────────────────────────────────────────"
-    python3 -m http.server {{PORT}} --directory dist --bind 127.0.0.1
+# Dev loop: build + serve + hot-reload on http://127.0.0.1:8765/.
+# Edit any .rs / .slint / .html and the page rebuilds + reloads.
+serve:
+    cd wasm-demo && trunk serve
 
-# Rebuild only (no serve) — for when you already have a server running.
+# Build the wasm-demo for release into wasm-demo/dist/. Used by the
+# Pages workflow; the `--public-url` flag is what makes the asset
+# URLs work when deployed under `/slint-mapping/` on github.io.
 build-wasm:
-    wasm-pack build --release --target web wasm-demo \
-        --out-dir ../dist/pkg --no-typescript
-    cp wasm-demo/web/index.html dist/index.html
+    cd wasm-demo && trunk build --release --public-url /slint-mapping/

@@ -1,0 +1,33 @@
+# Trunk configuration for the slint-mapping browser demo.
+# Run from this directory: `trunk serve` (dev) or `trunk build --release`.
+# See `https://trunkrs.dev/configuration/` for the full schema.
+
+[build]
+# Where trunk emits the assembled site. `cargo` already calls this
+# "dist" for `cargo package`, and the GitHub Actions Pages workflow
+# uploads this directory directly.
+dist = "dist"
+# Disables the hash in emitted filenames (e.g. `slint-mapping-wasm-demo-abc123.js`).
+# Our index.html imports the JS shim by exact name to wire the
+# `pinch_zoom` binding onto `window` for the JS-side gesture detector;
+# a hashed name would change on every build and the import would 404.
+# The downside (worse cache busting on hot-reload) doesn't bite in a
+# Pages deploy because GitHub Pages serves with revisable Cache-Control.
+no_sri = true
+filehash = false
+
+[serve]
+# Trunk's local dev server. http://127.0.0.1:8765/ (matches the port
+# the old `just serve` recipe used so muscle memory survives).
+addresses = ["127.0.0.1"]
+port = 8765
+# Suppress the auto-reload `<script>` injection from the served page
+# only if you find it noisy; default-on is the whole point of trunk.
+# (Left at default = enabled.)
+
+# When the live demo is deployed to GitHub Pages at
+# `https://gregoryraymond.github.io/slint-mapping/`, the asset URLs
+# need to be prefixed with `/slint-mapping/`. The Pages workflow sets
+# this via `--public-url /slint-mapping/` on the trunk build command;
+# leaving it unset here keeps `trunk serve` working at `/` for local
+# preview.

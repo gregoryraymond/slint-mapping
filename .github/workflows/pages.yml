@@ -39,19 +39,14 @@ jobs:
           # winit-web + femtovg are a sizeable compile.
           workspaces: ". -> target"
 
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Install trunk
+        uses: jetli/trunk-action@v0.5.0
         with:
           version: latest
 
       - name: Build wasm-demo
-        run: |
-          wasm-pack build --release --target web wasm-demo \
-            --out-dir ../dist/pkg \
-            --no-typescript
-
-      - name: Assemble static site
-        run: cp wasm-demo/web/index.html dist/index.html
+        working-directory: wasm-demo
+        run: trunk build --release --public-url /slint-mapping/
 
       - name: Configure Pages
         uses: actions/configure-pages@v4
@@ -59,7 +54,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: wasm-demo/dist
 
   deploy:
     needs: build

@@ -7,19 +7,26 @@ compiled to wasm.
 This crate exists only to be built by `wasm-pack`; the API is the
 parent crate's. **Not published to crates.io.**
 
-## Build
+## Build + serve
+
+Uses [trunk](https://trunkrs.dev/) — one tool that builds the wasm,
+serves it on `http://127.0.0.1:8765/`, and live-reloads on file
+changes. Install once with `cargo install trunk` (or
+`just install-publish-tools` from the repo root, which now bundles
+it in).
 
 ```sh
-# from the slint-mapping repo root
-wasm-pack build --release --target web wasm-demo \
-  --out-dir ../dist/pkg --no-typescript
-cp wasm-demo/web/index.html dist/index.html
-# serve dist/ with any static HTTP server
+# Dev loop — build + serve + reload on save:
+cd wasm-demo && trunk serve
+
+# One-off release build into wasm-demo/dist/:
+cd wasm-demo && trunk build --release
 ```
 
 The [`pages.yml`](../.github/workflows/pages.yml) GitHub Actions
-workflow runs these exact commands on every push to `main` and
-deploys the result to <https://gregoryraymond.github.io/slint-mapping/>.
+workflow runs `trunk build --release --public-url /slint-mapping/`
+on every push to `main` and deploys the result to
+<https://gregoryraymond.github.io/slint-mapping/>.
 
 ## License
 

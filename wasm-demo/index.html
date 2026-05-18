@@ -8,6 +8,18 @@
          the 404 you get from leaving favicon.ico unresolved) without
          adding any HTTP round-trip to the page load. -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231d76db' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z'/%3E%3C/svg%3E">
+
+    <!-- Tells trunk to build this Cargo workspace member with
+         wasm-bindgen, target=web. `data-no-import` suppresses trunk's
+         auto-init script — we keep our own custom init below so we
+         can filter winit's "control flow" exception and expose the
+         pinch_zoom binding on window for the JS gesture detector.
+         `data-wasm-opt="z"` runs wasm-opt -Oz (smallest bundle). -->
+    <link data-trunk rel="rust" href="Cargo.toml"
+          data-bindgen-target="web"
+          data-no-import
+          data-wasm-opt="z" />
+
     <style>
         html, body {
             margin: 0;
@@ -28,9 +40,6 @@
             opacity: 0.7;
         }
         canvas {
-            /* Slint / winit-web inserts the rendering canvas into the
-               document body. Make it fill the viewport so the map
-               isn't a 300×150-pixel postage stamp in the corner. */
             display: block;
             position: absolute;
             inset: 0;
@@ -47,14 +56,13 @@
          for the canonical pattern. -->
     <canvas id="canvas"></canvas>
     <div id="loading">Loading slint-mapping demo…</div>
+
     <script type="module">
         // Size the canvas to the viewport BEFORE init() runs. Slint
         // honours whatever width/height attributes the canvas already
         // has when it attaches; if we leave it default, the Window's
         // preferred-width/height (800×600) wins and you get dark
-        // bands around a small canvas on wider viewports. Setting
-        // these here makes the map full-bleed at whatever size the
-        // browser window is.
+        // bands around a small canvas on wider viewports.
         const canvas = document.getElementById('canvas');
         const sizeCanvas = () => {
             const dpr = window.devicePixelRatio || 1;
@@ -67,25 +75,15 @@
         window.addEventListener('resize', sizeCanvas);
 
         // ---- Pinch-zoom (wasm side) ----------------------------------
-        //
         // Slint's ScaleRotateGestureHandler relies on the platform
         // emitting a PinchGesture event, which winit-web currently
         // doesn't synthesise from browser pointer events (only macOS
         // and iOS get them natively). So we detect pinch ourselves
-        // here in JS using the Pointer Events API, then translate it
-        // into synthetic WheelEvents on the canvas — Slint's existing
-        // TouchArea.scroll-event already converts those into our
-        // `zoom-by(delta, anchor-x, anchor-y)` callback, so the whole
-        // map zooming pipeline gets reused for free.
-        //
-        // Mapping: each frame of a two-pointer pinch produces a scale
-        // ratio (currentDistance / lastDistance). We feed `log2(ratio)`
-        // multiplied by the same 120-per-notch factor wheel events
-        // use, so a 2× pinch == one full wheel notch zoom. Anchor goes
-        // at the midpoint between the two pointers.
-        const activePointers = new Map(); // pointerId → { x, y }
+        // here using the Pointer Events API, then call the
+        // wasm-exported `pinch_zoom` directly (bound on window
+        // below, once init resolves).
+        const activePointers = new Map();
         let lastPinchDistance = null;
-
         const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
         const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
@@ -109,17 +107,9 @@
                 const ratio = newDistance / lastPinchDistance;
                 if (Math.abs(ratio - 1) < 0.005) return;
                 const mid = midpoint(a, b);
-                // log2(ratio) is the zoom-level delta. Positive scale
-                // (pinch-out) → positive delta → zoom in. Slint's
-                // zoom-by callback expects that same sign convention.
                 const delta = Math.log2(ratio);
-                // Call directly into Rust via the wasm-bindgen export
-                // in wasm-demo/src/lib.rs::pinch_zoom. This bypasses
-                // Slint's TouchArea wheel pipeline (which doesn't
-                // pick up synthetic OR real wheel events reliably on
-                // wasm) and invokes the same zoom-by callback.
-                if (typeof pinch_zoom === 'function') {
-                    pinch_zoom(delta, mid.x, mid.y);
+                if (typeof window.pinch_zoom === 'function') {
+                    window.pinch_zoom(delta, mid.x, mid.y);
                 }
                 lastPinchDistance = newDistance;
             }
@@ -134,25 +124,27 @@
         canvas.addEventListener('pointercancel', endPointer);
         canvas.addEventListener('pointerleave', endPointer);
     </script>
+
     <script type="module">
-        // `--target web` emits an ES module shim. The default export
-        // `init()` resolves once the wasm has fetched and instantiated;
-        // the `#[wasm_bindgen(start)]` entry in lib.rs runs as part of
-        // that resolution.
-        import init, { pinch_zoom, current_zoom } from './pkg/slint_mapping_wasm_demo.js';
-        // Expose so the pinch detector in the earlier <script> block
-        // can reach it; that script ran first and only sees globals.
+        // trunk emits the wasm-bindgen ES module at a deterministic
+        // path because Trunk.toml has `[build] no_hash = true`. With
+        // `data-no-import` on the <link> above, trunk does NOT auto-
+        // inject its own init — we do it here so the named exports
+        // (pinch_zoom, current_zoom) land on `window` for the gesture
+        // detector script, and so the documented winit "control flow"
+        // exception gets filtered out of the failure path.
+        import init, { pinch_zoom, current_zoom }
+            from './slint-mapping-wasm-demo.js';
+
         window.pinch_zoom = pinch_zoom;
         window.current_zoom = current_zoom;
 
         // winit's web backend yields control back to the browser
         // event loop by *throwing* a JS exception with this exact
-        // text. The exception itself is the documented mechanism, not
-        // a failure — see
-        // https://docs.rs/winit/latest/winit/platform/web/. Filter
-        // it out here so our catch handler doesn't show a red
-        // "Failed to start" overlay on top of a perfectly working
-        // canvas.
+        // text. Documented mechanism, not a failure — filter so the
+        // catch handler doesn't show a red overlay on top of a
+        // perfectly working canvas. Reference:
+        // https://docs.rs/winit/latest/winit/platform/web/
         const WINIT_CONTROL_FLOW = /Using exceptions for control flow/;
 
         try {
@@ -160,8 +152,6 @@
             document.getElementById('loading')?.remove();
         } catch (err) {
             if (WINIT_CONTROL_FLOW.test(String(err?.message ?? err))) {
-                // Demo is up — winit just escaped the init call
-                // stack to hand back to requestAnimationFrame.
                 document.getElementById('loading')?.remove();
             } else {
                 const el = document.getElementById('loading');
