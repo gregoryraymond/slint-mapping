@@ -221,7 +221,11 @@ mod tests {
     fn put_creates_intermediate_directories() {
         let root = temp_root("intermediate_dirs");
         let cache = FileTileCache::new(&root);
-        let key = TileKey { x: 1234, y: 5678, z: 12 };
+        let key = TileKey {
+            x: 1234,
+            y: 5678,
+            z: 12,
+        };
         let png = include_bytes!("../sample-tiles/0/0/0.png");
         cache.put(key, png).unwrap();
         assert!(cache.path_for(key).exists());

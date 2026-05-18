@@ -80,8 +80,14 @@ fn panel_inner_size_scales_with_window_resize() {
     let vw1 = panel.get_map_viewport_width() as f64;
     let vh1 = panel.get_map_viewport_height() as f64;
 
-    assert!(vw1 > vw0, "viewport width should grow on resize: {vw0} → {vw1}");
-    assert!(vh1 > vh0, "viewport height should grow on resize: {vh0} → {vh1}");
+    assert!(
+        vw1 > vw0,
+        "viewport width should grow on resize: {vw0} → {vw1}"
+    );
+    assert!(
+        vh1 > vh0,
+        "viewport height should grow on resize: {vh0} → {vh1}"
+    );
     assert!((vw1 - 776.0).abs() < 0.5, "expected 800-24=776, got {vw1}");
     assert!((vh1 - 444.0).abs() < 0.5, "expected 500-56=444, got {vh1}");
 }
@@ -135,12 +141,17 @@ fn wire_controller(panel: &MapPanel) {
             let vh = panel.get_map_viewport_height() as f64;
             let mut c = camera.borrow_mut();
             let (lon, lat, z) = camera_zoom_anchored(
-                c.0, c.1, c.2,
+                c.0,
+                c.1,
+                c.2,
                 delta as f64,
-                anchor_x as f64, anchor_y as f64,
-                vw, vh,
+                anchor_x as f64,
+                anchor_y as f64,
+                vw,
+                vh,
                 tile_size,
-                0, 22,
+                0,
+                22,
             );
             c.0 = lon;
             c.1 = lat;
@@ -199,9 +210,14 @@ fn zoom_anchored_at_embed_corner_pins_cursor_pixel() {
     let zoom_before = panel.get_zoom() as f64;
 
     let (anchor_lon, anchor_lat) = viewport_px_to_lonlat(
-        cursor.0, cursor.1,
-        lon_before, lat_before, zoom_before,
-        vw, vh, tile_size,
+        cursor.0,
+        cursor.1,
+        lon_before,
+        lat_before,
+        zoom_before,
+        vw,
+        vh,
+        tile_size,
     );
 
     panel.invoke_zoom_by(1.0, cursor.0 as f32, cursor.1 as f32);
@@ -215,9 +231,7 @@ fn zoom_anchored_at_embed_corner_pins_cursor_pixel() {
     // viewport. If anything along the chain used a wrong viewport
     // (window 600x400 instead of embed 576x344) this would drift.
     let (rpx, rpy) = lonlat_to_viewport_px(
-        anchor_lon, anchor_lat,
-        lon_after, lat_after, zoom_after,
-        vw, vh, tile_size,
+        anchor_lon, anchor_lat, lon_after, lat_after, zoom_after, vw, vh, tile_size,
     );
     assert!(
         (rpx - cursor.0).abs() < 1.0,
@@ -236,10 +250,7 @@ fn zoom_anchored_at_embed_corner_pins_cursor_pixel() {
     // on the round-trip — 1e-3 degrees (~100 m at this zoom) is well
     // within both f32 representable resolution and any visible drift.
     let (expected_lon, expected_lat) = center_for_anchor_at_viewport_px(
-        anchor_lon, anchor_lat,
-        cursor.0, cursor.1,
-        zoom_after,
-        vw, vh, tile_size,
+        anchor_lon, anchor_lat, cursor.0, cursor.1, zoom_after, vw, vh, tile_size,
     );
     assert!(
         (lon_after - expected_lon).abs() < 1e-3,

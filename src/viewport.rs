@@ -64,17 +64,19 @@ pub fn visible_tiles(
     // cover the viewport? Add one extra ring for slight over-draw so
     // panning doesn't expose blank edges before the next refresh.
     let tiles_left = ((vp_cx + centre_px_in_tile_x) / tile_size_f).ceil() as i64 + 1;
-    let tiles_right =
-        ((viewport_width - vp_cx + (tile_size_f - centre_px_in_tile_x)) / tile_size_f).ceil() as i64 + 1;
+    let tiles_right = ((viewport_width - vp_cx + (tile_size_f - centre_px_in_tile_x)) / tile_size_f)
+        .ceil() as i64
+        + 1;
     let tiles_above = ((vp_cy + centre_px_in_tile_y) / tile_size_f).ceil() as i64 + 1;
     let tiles_below = ((viewport_height - vp_cy + (tile_size_f - centre_px_in_tile_y))
-        / tile_size_f).ceil() as i64 + 1;
+        / tile_size_f)
+        .ceil() as i64
+        + 1;
 
     let max_tile_idx = 1i64 << z_floor as i64; // 2^z_floor
 
-    let mut out = Vec::with_capacity(
-        ((tiles_left + tiles_right) * (tiles_above + tiles_below)) as usize,
-    );
+    let mut out =
+        Vec::with_capacity(((tiles_left + tiles_right) * (tiles_above + tiles_below)) as usize);
 
     for ty in (centre_tile_y - tiles_above)..=(centre_tile_y + tiles_below) {
         // Clamp Y to valid tile range; outside is "no tile here" (poles).
@@ -88,12 +90,8 @@ pub fn visible_tiles(
             // Pixel offset: where this tile's top-left sits relative to
             // the viewport's top-left. Negative for tiles whose left
             // edge is off-screen.
-            let pixel_x = vp_cx
-                - centre_px_in_tile_x
-                + ((tx - centre_tile_x) as f64) * tile_size_f;
-            let pixel_y = vp_cy
-                - centre_px_in_tile_y
-                + ((ty - centre_tile_y) as f64) * tile_size_f;
+            let pixel_x = vp_cx - centre_px_in_tile_x + ((tx - centre_tile_x) as f64) * tile_size_f;
+            let pixel_y = vp_cy - centre_px_in_tile_y + ((ty - centre_tile_y) as f64) * tile_size_f;
             out.push(PlacedTile {
                 key: TileKey {
                     x: wrapped_tx as u32,
@@ -252,9 +250,8 @@ mod tests {
     fn project_centre_lands_at_viewport_centre() {
         // The camera's own centre point should always land at the
         // viewport's centre pixel, regardless of zoom / size.
-        let (x, y) = lonlat_to_viewport_px(
-            -0.1276, 51.5074, -0.1276, 51.5074, 13.0, 800.0, 600.0, 256,
-        );
+        let (x, y) =
+            lonlat_to_viewport_px(-0.1276, 51.5074, -0.1276, 51.5074, 13.0, 800.0, 600.0, 256);
         assert!((x - 400.0).abs() < 1e-6, "x={x}");
         assert!((y - 300.0).abs() < 1e-6, "y={y}");
     }
@@ -264,18 +261,28 @@ mod tests {
         // Point east of camera centre → x > viewport centre x.
         let cx = 400.0;
         let cy = 300.0;
-        let (x_east, y_east) = lonlat_to_viewport_px(
-            1.0, 51.5074, 0.0, 51.5074, 8.0, 800.0, 600.0, 256,
+        let (x_east, y_east) =
+            lonlat_to_viewport_px(1.0, 51.5074, 0.0, 51.5074, 8.0, 800.0, 600.0, 256);
+        assert!(
+            x_east > cx,
+            "east of camera should be right-of-centre, got x={x_east}"
         );
-        assert!(x_east > cx, "east of camera should be right-of-centre, got x={x_east}");
-        assert!((y_east - cy).abs() < 1.0, "same latitude → near vertical centre");
+        assert!(
+            (y_east - cy).abs() < 1.0,
+            "same latitude → near vertical centre"
+        );
 
         // Point south → y > viewport centre y (Mercator y increases going south).
-        let (x_south, y_south) = lonlat_to_viewport_px(
-            0.0, 50.0, 0.0, 51.5074, 8.0, 800.0, 600.0, 256,
+        let (x_south, y_south) =
+            lonlat_to_viewport_px(0.0, 50.0, 0.0, 51.5074, 8.0, 800.0, 600.0, 256);
+        assert!(
+            y_south > cy,
+            "south of camera should be below centre, got y={y_south}"
         );
-        assert!(y_south > cy, "south of camera should be below centre, got y={y_south}");
-        assert!((x_south - cx).abs() < 1.0, "same longitude → near horizontal centre");
+        assert!(
+            (x_south - cx).abs() < 1.0,
+            "same longitude → near horizontal centre"
+        );
     }
 
     #[test]
@@ -286,12 +293,10 @@ mod tests {
         let (centre_lon, centre_lat, zoom) = (-0.1276, 51.5074, 13.0);
         let pts = [(-0.05, 51.51), (-0.18, 51.49), (0.0, 51.5074)];
         for (lon, lat) in pts {
-            let (px, py) = lonlat_to_viewport_px(
-                lon, lat, centre_lon, centre_lat, zoom, 800.0, 600.0, 256,
-            );
-            let (rlon, rlat) = viewport_px_to_lonlat(
-                px, py, centre_lon, centre_lat, zoom, 800.0, 600.0, 256,
-            );
+            let (px, py) =
+                lonlat_to_viewport_px(lon, lat, centre_lon, centre_lat, zoom, 800.0, 600.0, 256);
+            let (rlon, rlat) =
+                viewport_px_to_lonlat(px, py, centre_lon, centre_lat, zoom, 800.0, 600.0, 256);
             assert!((rlon - lon).abs() < 1e-9, "lon: {lon} → {rlon}");
             assert!((rlat - lat).abs() < 1e-9, "lat: {lat} → {rlat}");
         }
@@ -317,11 +322,16 @@ mod tests {
             let (new_lon, new_lat) = center_for_anchor_at_viewport_px(
                 alon, alat, anchor_px, anchor_py, z, vp_w, vp_h, 256,
             );
-            let (rpx, rpy) = lonlat_to_viewport_px(
-                alon, alat, new_lon, new_lat, z, vp_w, vp_h, 256,
+            let (rpx, rpy) =
+                lonlat_to_viewport_px(alon, alat, new_lon, new_lat, z, vp_w, vp_h, 256);
+            assert!(
+                (rpx - anchor_px).abs() < 1e-6,
+                "zoom={z} px: {anchor_px} → {rpx}"
             );
-            assert!((rpx - anchor_px).abs() < 1e-6, "zoom={z} px: {anchor_px} → {rpx}");
-            assert!((rpy - anchor_py).abs() < 1e-6, "zoom={z} py: {anchor_py} → {rpy}");
+            assert!(
+                (rpy - anchor_py).abs() < 1e-6,
+                "zoom={z} py: {anchor_py} → {rpy}"
+            );
         }
     }
 
@@ -361,9 +371,14 @@ mod tests {
         let tile_size = 256_u32;
 
         let (anchor_lon, anchor_lat) = viewport_px_to_lonlat(
-            cursor_px.0, cursor_px.1,
-            centre_lon, centre_lat, zoom_before,
-            vp_w, vp_h, tile_size,
+            cursor_px.0,
+            cursor_px.1,
+            centre_lon,
+            centre_lat,
+            zoom_before,
+            vp_w,
+            vp_h,
+            tile_size,
         );
 
         // Sweep deltas: small + large, positive + negative, integer +
@@ -373,16 +388,24 @@ mod tests {
         for delta in deltas {
             let new_zoom = zoom_before + delta;
             let (new_centre_lon, new_centre_lat) = center_for_anchor_at_viewport_px(
-                anchor_lon, anchor_lat,
-                cursor_px.0, cursor_px.1,
+                anchor_lon,
+                anchor_lat,
+                cursor_px.0,
+                cursor_px.1,
                 new_zoom,
-                vp_w, vp_h, tile_size,
+                vp_w,
+                vp_h,
+                tile_size,
             );
             let (rpx, rpy) = lonlat_to_viewport_px(
-                anchor_lon, anchor_lat,
-                new_centre_lon, new_centre_lat,
+                anchor_lon,
+                anchor_lat,
+                new_centre_lon,
+                new_centre_lat,
                 new_zoom,
-                vp_w, vp_h, tile_size,
+                vp_w,
+                vp_h,
+                tile_size,
             );
             // Tolerance is 1e-6 logical pixels — well below any
             // possible visible drift. Float precision lets us go even
@@ -440,27 +463,20 @@ mod tests {
 
         // Lock the anchor against the *initial* camera (burst start).
         let (anchor_lon, anchor_lat) = viewport_px_to_lonlat(
-            cursor.0, cursor.1,
-            centre_lon, centre_lat, zoom,
-            vp_w, vp_h, tile_size,
+            cursor.0, cursor.1, centre_lon, centre_lat, zoom, vp_w, vp_h, tile_size,
         );
 
         // Apply a burst of zoom-in events.
         for step in 0..8 {
             zoom += 0.5;
             let (new_centre_lon, new_centre_lat) = center_for_anchor_at_viewport_px(
-                anchor_lon, anchor_lat,
-                cursor.0, cursor.1,
-                zoom,
-                vp_w, vp_h, tile_size,
+                anchor_lon, anchor_lat, cursor.0, cursor.1, zoom, vp_w, vp_h, tile_size,
             );
             centre_lon = new_centre_lon;
             centre_lat = new_centre_lat;
 
             let (rpx, rpy) = lonlat_to_viewport_px(
-                anchor_lon, anchor_lat,
-                centre_lon, centre_lat, zoom,
-                vp_w, vp_h, tile_size,
+                anchor_lon, anchor_lat, centre_lon, centre_lat, zoom, vp_w, vp_h, tile_size,
             );
             assert!(
                 (rpx - cursor.0).abs() < 1e-6 && (rpy - cursor.1).abs() < 1e-6,
@@ -486,27 +502,41 @@ mod tests {
         let zoom_before = 13.0_f64;
 
         let (anchor_lon, anchor_lat) = viewport_px_to_lonlat(
-            cursor.0, cursor.1,
-            centre_lon, centre_lat, zoom_before,
-            vp_w, vp_h, tile_size,
+            cursor.0,
+            cursor.1,
+            centre_lon,
+            centre_lat,
+            zoom_before,
+            vp_w,
+            vp_h,
+            tile_size,
         );
 
         for &dz in &[0.5_f64, 1.0, 2.0, -1.0] {
             let new_zoom = zoom_before + dz;
             let (new_centre_lon, new_centre_lat) = center_for_anchor_at_viewport_px(
-                anchor_lon, anchor_lat,
-                cursor.0, cursor.1,
-                new_zoom,
-                vp_w, vp_h, tile_size,
+                anchor_lon, anchor_lat, cursor.0, cursor.1, new_zoom, vp_w, vp_h, tile_size,
             );
             let (rpx, rpy) = lonlat_to_viewport_px(
-                anchor_lon, anchor_lat,
-                new_centre_lon, new_centre_lat,
+                anchor_lon,
+                anchor_lat,
+                new_centre_lon,
+                new_centre_lat,
                 new_zoom,
-                vp_w, vp_h, tile_size,
+                vp_w,
+                vp_h,
+                tile_size,
             );
-            assert!((rpx - cursor.0).abs() < 1e-6, "x at dz={dz}: {} → {rpx}", cursor.0);
-            assert!((rpy - cursor.1).abs() < 1e-6, "y at dz={dz}: {} → {rpy}", cursor.1);
+            assert!(
+                (rpx - cursor.0).abs() < 1e-6,
+                "x at dz={dz}: {} → {rpx}",
+                cursor.0
+            );
+            assert!(
+                (rpy - cursor.1).abs() < 1e-6,
+                "y at dz={dz}: {} → {rpy}",
+                cursor.1
+            );
         }
     }
 
@@ -565,12 +595,16 @@ mod tests {
 
         for zoom in [10.0_f64, 10.25, 10.5, 10.75, 11.0] {
             let (mpx, mpy) = lonlat_to_viewport_px(
-                centre_lon, centre_lat,
-                centre_lon, centre_lat, zoom,
-                vp_w, vp_h, 256,
+                centre_lon, centre_lat, centre_lon, centre_lat, zoom, vp_w, vp_h, 256,
             );
-            assert!((mpx - vp_w / 2.0).abs() < 1e-6, "marker x at z={zoom}: {mpx}");
-            assert!((mpy - vp_h / 2.0).abs() < 1e-6, "marker y at z={zoom}: {mpy}");
+            assert!(
+                (mpx - vp_w / 2.0).abs() < 1e-6,
+                "marker x at z={zoom}: {mpx}"
+            );
+            assert!(
+                (mpy - vp_h / 2.0).abs() < 1e-6,
+                "marker y at z={zoom}: {mpy}"
+            );
 
             // The tile whose footprint contains the camera centre.
             let tiles = visible_tiles(centre_lon, centre_lat, zoom, vp_w, vp_h, 256);

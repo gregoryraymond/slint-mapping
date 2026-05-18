@@ -130,11 +130,7 @@ impl TileSource for WasmOsmTileSource {
             // placeholder for the (still-blank) failed state. We
             // clone out the inner Arc so the lock isn't held across
             // the user callback.
-            let cb = on_ready
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|w| Arc::clone(&**w));
+            let cb = on_ready.lock().unwrap().as_ref().map(|w| Arc::clone(&**w));
             if let Some(cb) = cb {
                 cb();
             }

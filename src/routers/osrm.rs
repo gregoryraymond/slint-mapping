@@ -30,9 +30,7 @@
 //! });
 //! ```
 
-use crate::routing::{
-    Maneuver, ManeuverKind, Profile, Route, RouteError, RouteRequest, Router,
-};
+use crate::routing::{Maneuver, ManeuverKind, Profile, Route, RouteError, RouteRequest, Router};
 use serde::Deserialize;
 use std::io::Read;
 use std::sync::Mutex;
@@ -192,8 +190,8 @@ struct OsrmManeuver {
 }
 
 pub(crate) fn parse_response(body: &str) -> Result<Route, RouteError> {
-    let resp: OsrmResponse = serde_json::from_str(body)
-        .map_err(|e| RouteError::Parse(format!("json: {e}")))?;
+    let resp: OsrmResponse =
+        serde_json::from_str(body).map_err(|e| RouteError::Parse(format!("json: {e}")))?;
     // OSRM uses a string status code: "Ok" on success, "NoRoute" /
     // "NoSegment" / "InvalidValue" / etc. on refusal.
     match resp.code.as_str() {
@@ -217,7 +215,11 @@ pub(crate) fn parse_response(body: &str) -> Result<Route, RouteError> {
     let mut maneuvers = Vec::new();
     for leg in route.legs {
         for step in leg.steps {
-            let kind = map_maneuver(&step.maneuver.kind, &step.maneuver.modifier, step.maneuver.exit);
+            let kind = map_maneuver(
+                &step.maneuver.kind,
+                &step.maneuver.modifier,
+                step.maneuver.exit,
+            );
             let road_name = if step.name.is_empty() {
                 None
             } else {
@@ -256,9 +258,9 @@ fn map_maneuver(kind: &str, modifier: &str, exit: Option<u8>) -> ManeuverKind {
         // "you're now leaving the roundabout" step, and "roundabout" /
         // "rotary" for the first "enter the roundabout, take exit N"
         // step. Collapse both rotary variants onto the roundabout kind.
-        "roundabout" | "rotary" => {
-            ManeuverKind::Roundabout { exit: exit.unwrap_or(1) }
-        }
+        "roundabout" | "rotary" => ManeuverKind::Roundabout {
+            exit: exit.unwrap_or(1),
+        },
         "exit roundabout" | "exit rotary" => ManeuverKind::Exit,
         "off ramp" | "on ramp" => ManeuverKind::Exit,
         "turn" => match modifier {
@@ -391,9 +393,15 @@ mod tests {
         // silently degrades instructions to "Continue" which is bad UX
         // but not crash-y, so explicit coverage matters.
         assert_eq!(map_maneuver("turn", "left", None), ManeuverKind::TurnLeft);
-        assert_eq!(map_maneuver("turn", "sharp right", None), ManeuverKind::TurnSharpRight);
+        assert_eq!(
+            map_maneuver("turn", "sharp right", None),
+            ManeuverKind::TurnSharpRight
+        );
         assert_eq!(map_maneuver("turn", "uturn", None), ManeuverKind::UTurn);
-        assert_eq!(map_maneuver("turn", "straight", None), ManeuverKind::Continue);
+        assert_eq!(
+            map_maneuver("turn", "straight", None),
+            ManeuverKind::Continue
+        );
         // Unknown modifier on a turn falls through to Other rather than
         // misclassifying as Continue.
         assert_eq!(map_maneuver("turn", "wibble", None), ManeuverKind::Other);

@@ -2,8 +2,18 @@
 name = "slint-mapping"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.74"
 license = "MIT OR Apache-2.0"
 description = "Map framework for Slint — interactive map component with tile rendering, panning, zooming, and marker overlays."
+repository = "https://github.com/gregoryraymond/slint-mapping"
+homepage = "https://gregoryraymond.github.io/slint-mapping/"
+documentation = "https://docs.rs/slint-mapping"
+readme = "README.md"
+keywords = ["slint", "map", "tiles", "osm", "geo"]
+categories = ["gui", "graphics", "rendering"]
+# Stays false until you're actually ready to ship. `just publish-dry`
+# temporarily flips it for the dry-run; the real `cargo publish` needs
+# it set to `true` (or removed — `true` is the default).
 publish = false
 
 # Single-package workspace so the wasm-demo crate can live alongside

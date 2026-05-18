@@ -37,7 +37,12 @@ pub fn tile_range_for_bbox(
     let ys = (y_at_min_lat.floor() as i64, y_at_max_lat.floor() as i64);
     let (x_min, x_max) = (xs.0.min(xs.1).max(0) as u32, xs.0.max(xs.1).max(0) as u32);
     let (y_min, y_max) = (ys.0.min(ys.1).max(0) as u32, ys.0.max(ys.1).max(0) as u32);
-    (x_min.min(max_tile), x_max.min(max_tile), y_min.min(max_tile), y_max.min(max_tile))
+    (
+        x_min.min(max_tile),
+        x_max.min(max_tile),
+        y_min.min(max_tile),
+        y_max.min(max_tile),
+    )
 }
 
 /// Enumerate every tile key required to cover the bbox across the
@@ -52,7 +57,8 @@ pub fn keys_for_region(
 ) -> Vec<TileKey> {
     let mut out = Vec::new();
     for z in zoom_min..=zoom_max {
-        let (x_min, x_max, y_min, y_max) = tile_range_for_bbox(lon_min, lat_min, lon_max, lat_max, z);
+        let (x_min, x_max, y_min, y_max) =
+            tile_range_for_bbox(lon_min, lat_min, lon_max, lat_max, z);
         for x in x_min..=x_max {
             for y in y_min..=y_max {
                 out.push(TileKey { x, y, z });
@@ -167,7 +173,11 @@ mod tests {
         // Greater London at z=12 — should be ~9×9 ≈ 81 tiles, give
         // or take a tile depending on bbox alignment.
         let keys = keys_for_region(-0.5, 51.25, 0.3, 51.75, 12, 12);
-        assert!(keys.len() > 50 && keys.len() < 150, "got {} tiles", keys.len());
+        assert!(
+            keys.len() > 50 && keys.len() < 150,
+            "got {} tiles",
+            keys.len()
+        );
         assert!(keys.iter().all(|k| k.z == 12));
     }
 

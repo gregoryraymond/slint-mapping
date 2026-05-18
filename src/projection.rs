@@ -36,7 +36,9 @@ pub fn lonlat_to_tile(longitude: f64, latitude: f64, zoom: f64) -> (f64, f64) {
 pub fn tile_to_lonlat(tile_x: f64, tile_y: f64, zoom: f64) -> (f64, f64) {
     let n = 2f64.powf(zoom);
     let longitude = tile_x / n * 360.0 - 180.0;
-    let lat_rad = (std::f64::consts::PI * (1.0 - 2.0 * tile_y / n)).sinh().atan();
+    let lat_rad = (std::f64::consts::PI * (1.0 - 2.0 * tile_y / n))
+        .sinh()
+        .atan();
     (longitude, lat_rad.to_degrees())
 }
 

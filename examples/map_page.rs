@@ -59,7 +59,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let win_weak = win.as_weak();
         let state = Rc::clone(&state);
         win.on_pan(move |dx, dy| {
-            let Some(win) = win_weak.upgrade() else { return };
+            let Some(win) = win_weak.upgrade() else {
+                return;
+            };
             let s = state.borrow();
             let tile_size = s.source.tile_size() as f64;
             let z = win.get_zoom() as f64;
@@ -84,7 +86,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let win_weak = win.as_weak();
         let state = Rc::clone(&state);
         win.on_zoom_by(move |delta, anchor_x, anchor_y| {
-            let Some(win) = win_weak.upgrade() else { return };
+            let Some(win) = win_weak.upgrade() else {
+                return;
+            };
             let s = state.borrow();
             let tile_size = s.source.tile_size() as f64;
             let min_z = s.source.min_zoom() as f64;

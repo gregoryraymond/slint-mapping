@@ -47,8 +47,18 @@ impl TileSource for SyntheticTileSource {
         let g = (40 + (key.y.wrapping_mul(151) & 0x7f)) as u8;
         let b = (40 + ((key.x ^ key.y).wrapping_mul(199) & 0x7f)) as u8;
         let fill = Rgba8Pixel { r, g, b, a: 255 };
-        let border = Rgba8Pixel { r: 255, g: 255, b: 255, a: 100 };
-        let cross = Rgba8Pixel { r: 255, g: 255, b: 255, a: 60 };
+        let border = Rgba8Pixel {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 100,
+        };
+        let cross = Rgba8Pixel {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 60,
+        };
 
         for y in 0..size as usize {
             for x in 0..size as usize {
@@ -85,8 +95,16 @@ mod tests {
         let src = SyntheticTileSource::new();
         for key in [
             TileKey { x: 0, y: 0, z: 0 },
-            TileKey { x: 1234, y: 5678, z: 12 },
-            TileKey { x: u32::MAX, y: u32::MAX, z: 18 },
+            TileKey {
+                x: 1234,
+                y: 5678,
+                z: 12,
+            },
+            TileKey {
+                x: u32::MAX,
+                y: u32::MAX,
+                z: 18,
+            },
         ] {
             assert!(src.tile(key).is_some(), "{key:?}");
         }

@@ -1,0 +1,33 @@
+# typos-cli configuration. Documents the known false positives in the
+# slint-mapping codebase so `just typos` stays useful (no recurring
+# noise) without hiding real misspellings.
+#
+# Schema: https://github.com/crate-ci/typos/blob/master/docs/reference.md
+
+[default]
+# Default check is enabled; this block holds per-word and per-pattern
+# allowlists used across all files.
+
+# Whole identifiers typos should leave alone. Use `extend-identifiers`
+# (not `extend-words`) here because typos splits at case transitions —
+# "PNGs" becomes ["PN", "Gs"] and "PN" is on its built-in misspelling
+# list (suggested replacement: "ON"). The identifier-level allowlist
+# fires *before* that split.
+[default.extend-identifiers]
+PNGs = "PNGs"
+SVGs = "SVGs"
+JPGs = "JPGs"
+GIFs = "GIFs"
+
+[files]
+# Don't scan generated or vendored content. Sample tiles live as PNG
+# binaries under a path with no human-authored prose; nothing in there
+# should be feeding the dictionary.
+extend-exclude = [
+    "sample-tiles/**",
+    "target/**",
+    "**/*.png",
+    "**/*.svg",
+    "**/*.ttf",
+    "Cargo.lock",
+]

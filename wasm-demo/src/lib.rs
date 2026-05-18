@@ -97,9 +97,21 @@ pub fn run() {
     // wasm binary (every byte counts; circles read fine at this
     // scale).
     let markers: Rc<Vec<DemoMarker>> = Rc::new(vec![
-        DemoMarker { lon: -0.1346, lat: 51.5099, colour: Color::from_rgb_u8(0xEF, 0x44, 0x44) },
-        DemoMarker { lon: -0.1262, lat: 51.5194, colour: Color::from_rgb_u8(0x3B, 0x82, 0xF6) },
-        DemoMarker { lon: -0.0014, lat: 51.4769, colour: Color::from_rgb_u8(0x22, 0xC5, 0x5E) },
+        DemoMarker {
+            lon: -0.1346,
+            lat: 51.5099,
+            colour: Color::from_rgb_u8(0xEF, 0x44, 0x44),
+        },
+        DemoMarker {
+            lon: -0.1262,
+            lat: 51.5194,
+            colour: Color::from_rgb_u8(0x3B, 0x82, 0xF6),
+        },
+        DemoMarker {
+            lon: -0.0014,
+            lat: 51.4769,
+            colour: Color::from_rgb_u8(0x22, 0xC5, 0x5E),
+        },
     ]);
 
     // Sketched polyline approximating the Thames through central
@@ -113,7 +125,7 @@ pub fn run() {
         (-0.1100, 51.5030),
         (-0.0700, 51.5050),
         (-0.0300, 51.4980),
-        (0.0000,  51.4880),
+        (0.0000, 51.4880),
     ]);
 
     // The refresh closure recomputes (visible tiles + projected
@@ -127,7 +139,9 @@ pub fn run() {
         let markers = Rc::clone(&markers);
         let polyline_coords = Rc::clone(&polyline_coords);
         Rc::new(move || {
-            let Some(demo) = demo_weak.upgrade() else { return };
+            let Some(demo) = demo_weak.upgrade() else {
+                return;
+            };
             let cam = *camera.borrow();
             // Mirror camera to Slint properties so any in-scene UI
             // (e.g. a coords readout) sees the live values.
@@ -174,8 +188,14 @@ pub fn run() {
                 .iter()
                 .map(|m| {
                     let (x, y) = lonlat_to_viewport_px(
-                        m.lon, m.lat, cam.longitude, cam.latitude, cam.zoom,
-                        vw, vh, source.tile_size(),
+                        m.lon,
+                        m.lat,
+                        cam.longitude,
+                        cam.latitude,
+                        cam.zoom,
+                        vw,
+                        vh,
+                        source.tile_size(),
                     );
                     Marker {
                         x: x as f32,
@@ -191,8 +211,14 @@ pub fn run() {
             let mut commands = String::with_capacity(polyline_coords.len() * 16);
             for (i, (lon, lat)) in polyline_coords.iter().enumerate() {
                 let (x, y) = lonlat_to_viewport_px(
-                    *lon, *lat, cam.longitude, cam.latitude, cam.zoom,
-                    vw, vh, source.tile_size(),
+                    *lon,
+                    *lat,
+                    cam.longitude,
+                    cam.latitude,
+                    cam.zoom,
+                    vw,
+                    vh,
+                    source.tile_size(),
                 );
                 if i == 0 {
                     commands.push_str(&format!("M {x:.1} {y:.1}"));
@@ -223,8 +249,11 @@ pub fn run() {
             {
                 let mut c = camera.borrow_mut();
                 let (lon, lat) = camera_pan(
-                    c.longitude, c.latitude, c.zoom,
-                    dx as f64, dy as f64,
+                    c.longitude,
+                    c.latitude,
+                    c.zoom,
+                    dx as f64,
+                    dy as f64,
                     source.tile_size(),
                 );
                 c.longitude = lon;
@@ -241,18 +270,25 @@ pub fn run() {
         let refresh = Rc::clone(&refresh);
         let demo_weak = demo.as_weak();
         demo.on_zoom_by(move |delta, ax, ay| {
-            let Some(demo) = demo_weak.upgrade() else { return };
+            let Some(demo) = demo_weak.upgrade() else {
+                return;
+            };
             let vw = demo.get_map_viewport_width() as f64;
             let vh = demo.get_map_viewport_height() as f64;
             {
                 let mut c = camera.borrow_mut();
                 let (lon, lat, z) = camera_zoom_anchored(
-                    c.longitude, c.latitude, c.zoom,
+                    c.longitude,
+                    c.latitude,
+                    c.zoom,
                     delta as f64,
-                    ax as f64, ay as f64,
-                    vw, vh,
+                    ax as f64,
+                    ay as f64,
+                    vw,
+                    vh,
                     source.tile_size(),
-                    source.min_zoom(), source.max_zoom(),
+                    source.min_zoom(),
+                    source.max_zoom(),
                 );
                 c.longitude = lon;
                 c.latitude = lat;

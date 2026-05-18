@@ -220,4 +220,3 @@ fn logical_size(map: &MapView) -> (f64, f64) {
     let scale = if scale == 0.0 { 1.0 } else { scale };
     (phys.width as f64 / scale, phys.height as f64 / scale)
 }
-

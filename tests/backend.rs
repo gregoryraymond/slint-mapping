@@ -44,8 +44,7 @@ fn init_backend() {
 fn make_map() -> (MapView, MapController) {
     init_backend();
     let map = MapView::new().expect("MapView::new");
-    map.window()
-        .set_size(PhysicalSize::new(800, 600));
+    map.window().set_size(PhysicalSize::new(800, 600));
     let source = FileTileSource::new(slint_mapping::SAMPLE_TILES_DIR);
     let controller = MapController::new(&map, source);
     (map, controller)

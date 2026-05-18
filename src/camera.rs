@@ -59,14 +59,12 @@ pub fn zoom_anchored(
     let (tx_c, ty_c) = lonlat_to_tile(centre_longitude, centre_latitude, zoom_before);
     let adx = anchor_x_px - viewport_width_px / 2.0;
     let ady = anchor_y_px - viewport_height_px / 2.0;
-    let (anchor_lon, anchor_lat) =
-        tile_to_lonlat(tx_c + adx / ts, ty_c + ady / ts, zoom_before);
+    let (anchor_lon, anchor_lat) = tile_to_lonlat(tx_c + adx / ts, ty_c + ady / ts, zoom_before);
 
     let zoom_after = (zoom_before + delta).clamp(min_zoom as f64, max_zoom as f64);
 
     let (tx_an, ty_an) = lonlat_to_tile(anchor_lon, anchor_lat, zoom_after);
-    let (new_lon, new_lat) =
-        tile_to_lonlat(tx_an - adx / ts, ty_an - ady / ts, zoom_after);
+    let (new_lon, new_lat) = tile_to_lonlat(tx_an - adx / ts, ty_an - ady / ts, zoom_after);
     (new_lon, new_lat, zoom_after)
 }
 
@@ -79,7 +77,11 @@ mod tests {
     const TS: u32 = 256;
 
     fn assert_close(a: f64, b: f64, eps: f64, msg: &str) {
-        assert!((a - b).abs() < eps, "{msg}: {a} vs {b} (diff {})", (a - b).abs());
+        assert!(
+            (a - b).abs() < eps,
+            "{msg}: {a} vs {b} (diff {})",
+            (a - b).abs()
+        );
     }
 
     // ---------- pan ----------
@@ -153,10 +155,8 @@ mod tests {
         // Zooming with the anchor at the exact viewport centre should
         // leave the camera centre unchanged.
         let (lon, lat, z) = zoom_anchored(
-            -0.1276, 51.5074, 10.0, 1.0,
-            /* anchor centred: */ 400.0, 300.0,
-            /* viewport       : */ 800.0, 600.0,
-            TS, 0, 22,
+            -0.1276, 51.5074, 10.0, 1.0, /* anchor centred: */ 400.0, 300.0,
+            /* viewport       : */ 800.0, 600.0, TS, 0, 22,
         );
         assert_close(lon, -0.1276, 1e-9, "centre-anchor lon");
         assert_close(lat, 51.5074, 1e-9, "centre-anchor lat");
@@ -180,14 +180,25 @@ mod tests {
         let (tx_c, ty_c) = lonlat_to_tile(centre_lon, centre_lat, zoom_before);
         let adx = anchor_x - vw / 2.0;
         let ady = anchor_y - vh / 2.0;
-        let (anchor_lon_before, anchor_lat_before) =
-            crate::projection::tile_to_lonlat(tx_c + adx / TS as f64, ty_c + ady / TS as f64, zoom_before);
+        let (anchor_lon_before, anchor_lat_before) = crate::projection::tile_to_lonlat(
+            tx_c + adx / TS as f64,
+            ty_c + ady / TS as f64,
+            zoom_before,
+        );
 
         // Apply the zoom.
         let (new_lon, new_lat, new_zoom) = zoom_anchored(
-            centre_lon, centre_lat, zoom_before, 2.0,
-            anchor_x, anchor_y, vw, vh,
-            TS, 0, 22,
+            centre_lon,
+            centre_lat,
+            zoom_before,
+            2.0,
+            anchor_x,
+            anchor_y,
+            vw,
+            vh,
+            TS,
+            0,
+            22,
         );
 
         // Geo-coord under (0,0) AFTER the zoom — should match.
@@ -199,11 +210,15 @@ mod tests {
         );
 
         assert_close(
-            anchor_lon_after, anchor_lon_before, 1e-9,
+            anchor_lon_after,
+            anchor_lon_before,
+            1e-9,
             "anchor longitude should stay under the cursor",
         );
         assert_close(
-            anchor_lat_after, anchor_lat_before, 1e-9,
+            anchor_lat_after,
+            anchor_lat_before,
+            1e-9,
             "anchor latitude should stay under the cursor",
         );
     }
@@ -211,8 +226,7 @@ mod tests {
     #[test]
     fn zoom_clamps_to_max() {
         let (_, _, z) = zoom_anchored(
-            0.0, 0.0, 18.0, /* delta */ 10.0,
-            0.0, 0.0, 800.0, 600.0, TS, 0, 22,
+            0.0, 0.0, 18.0, /* delta */ 10.0, 0.0, 0.0, 800.0, 600.0, TS, 0, 22,
         );
         assert_eq!(z, 22.0, "should clamp at max");
     }
@@ -220,8 +234,7 @@ mod tests {
     #[test]
     fn zoom_clamps_to_min() {
         let (_, _, z) = zoom_anchored(
-            0.0, 0.0, 2.0, /* delta */ -10.0,
-            0.0, 0.0, 800.0, 600.0, TS, 0, 22,
+            0.0, 0.0, 2.0, /* delta */ -10.0, 0.0, 0.0, 800.0, 600.0, TS, 0, 22,
         );
         assert_eq!(z, 0.0, "should clamp at min");
     }
@@ -230,13 +243,9 @@ mod tests {
     fn zoom_is_reversible_at_centre_anchor() {
         let start = (-0.1276, 51.5074, 10.0);
         let (l1, la1, z1) = zoom_anchored(
-            start.0, start.1, start.2, 2.0,
-            400.0, 300.0, 800.0, 600.0, TS, 0, 22,
+            start.0, start.1, start.2, 2.0, 400.0, 300.0, 800.0, 600.0, TS, 0, 22,
         );
-        let (l2, la2, z2) = zoom_anchored(
-            l1, la1, z1, -2.0,
-            400.0, 300.0, 800.0, 600.0, TS, 0, 22,
-        );
+        let (l2, la2, z2) = zoom_anchored(l1, la1, z1, -2.0, 400.0, 300.0, 800.0, 600.0, TS, 0, 22);
         assert_close(z2, start.2, 1e-12, "zoom");
         assert_close(l2, start.0, 1e-9, "lon");
         assert_close(la2, start.1, 1e-9, "lat");

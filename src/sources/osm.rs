@@ -258,8 +258,7 @@ impl OsmTileSource {
                     // req/s combined.
                     let mut last_request_at = Instant::now() - Duration::from_secs(60);
                     while let Some(key) = fetch_queue_w.pop() {
-                        let interval =
-                            Duration::from_millis(interval_w.load(Ordering::Relaxed));
+                        let interval = Duration::from_millis(interval_w.load(Ordering::Relaxed));
                         let since = last_request_at.elapsed();
                         if since < interval {
                             thread::sleep(interval - since);
@@ -549,7 +548,10 @@ mod tests {
 
         assert!(result.is_none());
         assert_eq!(after_fetch, before_fetch, "failed key enqueued for fetch");
-        assert_eq!(after_decode, before_decode, "failed key enqueued for decode");
+        assert_eq!(
+            after_decode, before_decode,
+            "failed key enqueued for decode"
+        );
 
         src.clear_failed();
         assert!(src.failed.lock().unwrap().is_empty());

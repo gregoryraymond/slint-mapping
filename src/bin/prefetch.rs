@@ -65,7 +65,10 @@ fn main() {
         &config,
         |i, total, key, outcome| match outcome {
             FetchOutcome::Cached => {
-                eprint!("\r[{i:4}/{total:4}] cached {}/{}/{}        ", key.z, key.x, key.y)
+                eprint!(
+                    "\r[{i:4}/{total:4}] cached {}/{}/{}        ",
+                    key.z, key.x, key.y
+                )
             }
             FetchOutcome::Fetched { bytes } => eprint!(
                 "\r[{i:4}/{total:4}] fetched {}/{}/{} ({} B)      ",
@@ -79,7 +82,10 @@ fn main() {
     );
 
     match result {
-        Ok(n) => eprintln!("\n\nDone. {n} tile(s) processed under {}/", args.dest.display()),
+        Ok(n) => eprintln!(
+            "\n\nDone. {n} tile(s) processed under {}/",
+            args.dest.display()
+        ),
         Err(e) => {
             eprintln!("\nerror: {e}");
             std::process::exit(1);

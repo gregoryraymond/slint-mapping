@@ -27,7 +27,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 "No tile directory given — using bundled sample tiles at {}",
                 slint_mapping::SAMPLE_TILES_DIR
             );
-            eprintln!("(Pass `--synthetic` for test tiles, or a slippy-map dir for your own bundle.)");
+            eprintln!(
+                "(Pass `--synthetic` for test tiles, or a slippy-map dir for your own bundle.)"
+            );
             Box::new(FileTileSource::new(slint_mapping::SAMPLE_TILES_DIR))
         }
     };
