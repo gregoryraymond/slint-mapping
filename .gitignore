@@ -7,6 +7,7 @@ Cargo.lock
 # Playwright verification harness in wasm-demo/test/.
 node_modules/
 package-lock.json
-# Built wasm bundle + screenshots from local verify.js runs.
-/dist/
+# Built wasm bundle (trunk emits to wasm-demo/dist/; legacy wasm-pack
+# emitted to /dist/ at the repo root — both ignored).
+dist/
 wasm-demo/test/demo.png
