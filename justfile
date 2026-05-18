@@ -94,3 +94,27 @@ publish-dry:
 # Examples: `just release patch` (0.1.0 → 0.1.1), `just release minor`, `just release 0.3.0`.
 release LEVEL="patch":
     cargo release {{LEVEL}} --execute
+
+## ─── Local wasm preview ────────────────────────────────────────────
+
+# Build the wasm-demo and assemble dist/ exactly the way the Pages
+# workflow does, then serve it on http://localhost:8765 so you can
+# open it in a browser. Without an HTTP server, opening dist/index.html
+# directly via file:// fails — ES modules + WebAssembly both refuse to
+# load from file:// for security reasons.
+serve PORT="8765":
+    wasm-pack build --release --target web wasm-demo \
+        --out-dir ../dist/pkg --no-typescript
+    cp wasm-demo/web/index.html dist/index.html
+    @echo ""
+    @echo "──────────────────────────────────────────────"
+    @echo "  Serving on http://localhost:{{PORT}}/"
+    @echo "  Stop with Ctrl-C."
+    @echo "──────────────────────────────────────────────"
+    python3 -m http.server {{PORT}} --directory dist --bind 127.0.0.1
+
+# Rebuild only (no serve) — for when you already have a server running.
+build-wasm:
+    wasm-pack build --release --target web wasm-demo \
+        --out-dir ../dist/pkg --no-typescript
+    cp wasm-demo/web/index.html dist/index.html
