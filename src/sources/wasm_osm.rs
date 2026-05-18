@@ -56,10 +56,8 @@ use crate::sources::util::{decode_png_to_buffer, format_url};
 use lru::LruCache;
 use send_wrapper::SendWrapper;
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer};
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::num::NonZeroUsize;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
@@ -166,17 +164,6 @@ impl TileSource for WasmOsmTileSource {
         let in_flight_err = Arc::clone(&self.in_flight);
         let failed_err = Arc::clone(&self.failed);
 
-        // The XHR + onload chain replaces the earlier `spawn_local +
-        // JsFuture` chain. The `closure_slot` holds the
-        // `Closure<dyn FnMut()>` we registered with the XHR; when the
-        // onload fires (exactly once), we take the closure out so
-        // wasm-bindgen drops it cleanly. Without that drop the
-        // closure would leak — `forget()` on creation transferred
-        // ownership to JS, and only an explicit `take()` from the
-        // slot inside the handler reclaims it.
-        let closure_slot: Rc<RefCell<Option<Closure<dyn FnMut()>>>> =
-            Rc::new(RefCell::new(None));
-
         let xhr = web_sys::XmlHttpRequest::new()
             .expect("XmlHttpRequest::new should succeed in a browser context");
         if xhr.open_with_async("GET", &url, true).is_err() {
@@ -189,13 +176,28 @@ impl TileSource for WasmOsmTileSource {
         }
         xhr.set_response_type(web_sys::XmlHttpRequestResponseType::Arraybuffer);
 
+        // Build a single-shot `FnOnce` closure and hand ownership to
+        // JS via `Closure::once_into_js`. Two reasons this is the
+        // pattern to use here, rather than `Closure::wrap` + manual
+        // drop:
+        //
+        //   1. `once_into_js` returns a `JsValue` that JS owns; the
+        //      Rust-side handle is gone, so we can't accidentally
+        //      drop the closure from inside its own handler (which
+        //      panics with "closure invoked recursively or after
+        //      being dropped" — the exact bug an earlier draft of
+        //      this code hit on Firefox).
+        //   2. wasm-bindgen drops the underlying closure after first
+        //      invocation, so there's no leak per request.
+        //
+        // We register only `onloadend`, the universal XHR completion
+        // event that fires after success, network failure, or
+        // timeout. Setting `onload` + `onerror` + `ontimeout`
+        // separately would require three closures (FnOnce can't be
+        // multi-registered), and we'd be back in lifetime-juggling
+        // territory.
         let xhr_for_handler = xhr.clone();
-        let closure_slot_for_handler = Rc::clone(&closure_slot);
-        let handler = Closure::wrap(Box::new(move || {
-            // Drop our own Closure handle as the first thing — XHR's
-            // onload fires exactly once, so we don't want to leak.
-            let _self_drop = closure_slot_for_handler.borrow_mut().take();
-
+        let handler_js = Closure::once_into_js(move || {
             let status = xhr_for_handler.status().unwrap_or(0);
             let success = (200..300).contains(&status);
             let buf = if success {
@@ -236,23 +238,17 @@ impl TileSource for WasmOsmTileSource {
             if let Some(cb) = cb {
                 cb();
             }
-        }) as Box<dyn FnMut()>);
+        });
 
-        xhr.set_onload(Some(handler.as_ref().unchecked_ref()));
-        // Same callback handles `onerror` and `onabort` — both yield
-        // a 0 status, which the handler treats as a fetch failure.
-        xhr.set_onerror(Some(handler.as_ref().unchecked_ref()));
-        xhr.set_ontimeout(Some(handler.as_ref().unchecked_ref()));
-
-        *closure_slot.borrow_mut() = Some(handler);
+        xhr.set_onloadend(Some(handler_js.unchecked_ref()));
 
         if xhr.send().is_err() {
             // send() may reject for cross-origin or invalid-state
             // reasons; clean up the in-flight slot so a subsequent
-            // tile() call can retry.
+            // tile() call can retry. The `once_into_js` closure that
+            // never fires will be GC'd by JS along with the XHR.
             failed_err.lock().unwrap().insert(key);
             in_flight_err.lock().unwrap().remove(&key);
-            closure_slot.borrow_mut().take();
         }
 
         None
