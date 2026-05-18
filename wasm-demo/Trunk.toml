@@ -16,6 +16,29 @@ dist = "dist"
 no_sri = true
 filehash = false
 
+[watch]
+# Whitelist of paths the file-watcher should react to. By default
+# trunk watches the whole project dir (minus target/ and dist/),
+# which rebuilds on any noise — IDE swap files, the test harness,
+# Cargo.lock ticks from cargo metadata invocations, leftover build
+# artefacts in sibling dirs. Limiting to just the files that
+# actually influence the wasm output keeps `trunk serve` from
+# entering a rebuild loop.
+watch = [
+    "src",
+    "ui",
+    "Cargo.toml",
+    "Trunk.toml",
+    "index.html",
+    "build.rs",
+    # The parent library's source — wasm-demo links it via
+    # `slint-mapping = { path = ".." }`, so edits there should
+    # trigger a rebuild too.
+    "../src",
+    "../ui",
+    "../Cargo.toml",
+]
+
 [serve]
 # Trunk's local dev server. http://127.0.0.1:8765/ (matches the port
 # the old `just serve` recipe used so muscle memory survives).
