@@ -132,12 +132,22 @@ export component MapEmbed inherits Rectangle {
     for tile in root.tiles: Rectangle {
         x: tile.x;
         y: tile.y;
-        width: tile.size;
-        height: tile.size;
+        // Each tile is oversized by 1 px on width AND height so the
+        // right + bottom edges overlap the next tile's left + top
+        // edges. Without this, fractional `tile.x` / `tile.y` from
+        // zoomed/panned projection math leaves sub-pixel seams that
+        // the renderer anti-aliases into a visible dark grid against
+        // the MapEmbed's #1a1a1a background. The overlap costs a tiny
+        // amount of paint redundancy on each frame; the visual win is
+        // a seamless tile sheet at every zoom level.
+        width: tile.size + 1px;
+        height: tile.size + 1px;
         clip: true;
+        // Placeholder fill for tiles whose image is still in flight.
+        // Border deliberately omitted — the previous 1-px outline on
+        // loading tiles was the other source of "grid line" visual
+        // noise during initial pan / zoom bursts.
         background: tile.image.width == 0 ? #262626 : transparent;
-        border-width: tile.image.width == 0 ? 1px : 0;
-        border-color: #303030;
         if (tile.image.width > 0): Image {
             width: parent.width;
             height: parent.height;
