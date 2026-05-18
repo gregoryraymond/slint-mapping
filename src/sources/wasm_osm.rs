@@ -230,11 +230,7 @@ impl TileSource for WasmOsmTileSource {
             // Fire the repaint hook regardless of success — even a
             // failed fetch should let the UI swap its loading
             // placeholder for the (still-blank) failed state.
-            let cb = on_ready
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|w| Arc::clone(&**w));
+            let cb = on_ready.lock().unwrap().as_ref().map(|w| Arc::clone(&**w));
             if let Some(cb) = cb {
                 cb();
             }
