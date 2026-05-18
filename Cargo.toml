@@ -14,7 +14,7 @@ categories = ["gui", "graphics", "rendering"]
 # Stays false until you're actually ready to ship. `just publish-dry`
 # temporarily flips it for the dry-run; the real `cargo publish` needs
 # it set to `true` (or removed — `true` is the default).
-publish = false
+publish = true
 
 # Single-package workspace so the wasm-demo crate can live alongside
 # the library and consume it via `path = ".."`. Root crate stays the
@@ -72,7 +72,7 @@ web-sys = { version = "0.3", optional = true, features = [
 # is 256 KB, and a few minutes of panning leaks hundreds of MB and
 # eventually freezes the tab. lru is a tiny dep (~6 KB compiled) with
 # no transitive cost.
-lru = { version = "0.12", optional = true }
+lru = { version = "0.16", optional = true }
 # Lets us store a `!Send` closure (e.g. one that captures `Rc<…>`) in
 # a struct that needs to satisfy `Send + Sync` for the TileSource
 # trait. SendWrapper is safe on single-threaded wasm because every
@@ -102,12 +102,16 @@ http = ["dep:ureq", "dep:image"]
 # rendering doesn't pull serde derive into their build.
 routing = ["dep:ureq", "dep:serde", "dep:serde_json"]
 # Enables WasmOsmTileSource — a browser-side OSM tile source that
-# uses web-sys's fetch + wasm_bindgen_futures::spawn_local instead of
-# ureq + std::thread. Off by default; the mobile (Android) target
-# never wants any of this. Mutually exclusive in practice with `http`
-# (ureq doesn't compile to wasm32-unknown-unknown), but they don't
-# conflict at the Cargo level — leaving both on a wasm build just
-# brings in the dead native code in `osm.rs`.
+# uses web-sys's XmlHttpRequest + a Closure::once_into_js callback
+# instead of ureq + std::thread (or fetch + spawn_local, which an
+# earlier iteration tried but hit a fatal JsFuture × winit-web
+# closure-reentrancy bug — see crates/slint-mapping/src/sources/
+# wasm_osm.rs for the post-mortem). Off by default; the mobile
+# (Android) target never wants any of this. Mutually exclusive in
+# practice with `http` (ureq doesn't compile to
+# wasm32-unknown-unknown), but they don't conflict at the Cargo level
+# — leaving both on a wasm build just brings in the dead native code
+# in `osm.rs`.
 #
 # Every dependency this pulls is additionally gated by
 # `[target.'cfg(target_arch = "wasm32")']` in this Cargo.toml, plus
