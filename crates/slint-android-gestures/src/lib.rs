@@ -164,8 +164,16 @@ mod tests {
         // JNI symbol would.
         let cb_guard = PINCH_HANDLER.lock().unwrap();
         if let Some(cb) = cb_guard.as_ref() {
-            cb(PinchEvent { delta: 0.5, center_x: 100.0, center_y: 200.0 });
-            cb(PinchEvent { delta: -0.25, center_x: 100.0, center_y: 200.0 });
+            cb(PinchEvent {
+                delta: 0.5,
+                center_x: 100.0,
+                center_y: 200.0,
+            });
+            cb(PinchEvent {
+                delta: -0.25,
+                center_x: 100.0,
+                center_y: 200.0,
+            });
         }
         drop(cb_guard);
         assert_eq!(*captured.lock().unwrap(), vec![0.5, -0.25]);

@@ -351,8 +351,12 @@ pub fn run() {
 #[wasm_bindgen]
 pub fn pinch_zoom(delta: f32, anchor_x: f32, anchor_y: f32) -> f32 {
     DEMO_HANDLE.with(|h| {
-        let Some(weak) = h.borrow().clone() else { return -1.0 };
-        let Some(demo) = weak.upgrade() else { return -2.0 };
+        let Some(weak) = h.borrow().clone() else {
+            return -1.0;
+        };
+        let Some(demo) = weak.upgrade() else {
+            return -2.0;
+        };
         demo.invoke_zoom_by(delta, anchor_x, anchor_y);
         demo.window().request_redraw();
         demo.get_zoom()
