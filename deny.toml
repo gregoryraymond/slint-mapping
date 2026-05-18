@@ -10,7 +10,23 @@ version = 2
 # Fail on any active CVE; warnings (informational / unmaintained) do
 # not fail the build but show up in the report.
 yanked = "warn"
-ignore = []
+ignore = [
+    # `paste` is no longer maintained but no security vulnerability;
+    # comes in transitively via image → ravif → rav1e → paste, deep
+    # in the image-decoding chain. There's no safe upgrade and it's
+    # not exploitable — just the author archiving the repo. Revisit
+    # when the image crate replaces it (their issue tracker has the
+    # transition discussion). Original advisory:
+    # https://rustsec.org/advisories/RUSTSEC-2024-0436
+    "RUSTSEC-2024-0436",
+    # `bincode` 2.x is marked unmaintained as of 2025-12-16. Pulled
+    # in transitively via i-slint-compiler → typed-index-collections
+    # → bincode. Same posture as paste: no safe upgrade, no
+    # vulnerability, deep in the Slint compile chain — revisit when
+    # the Slint crates retire it. Advisory:
+    # https://rustsec.org/advisories/RUSTSEC-2025-0141
+    "RUSTSEC-2025-0141",
+]
 
 # ───── License policy ──────────────────────────────────────────────
 [licenses]
@@ -27,13 +43,20 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
     "Zlib",
-    "MPL-2.0",
     "CC0-1.0",
-    "CDLA-Permissive-2.0",
     "0BSD",
-    "BSL-1.0",
+    # University of Illinois / NCSA Open Source License. Pulled in
+    # transitively via image → rav1e → ravif → libfuzzer-sys. OSI-
+    # approved permissive licence, similar in spirit to BSD-3-Clause.
+    "NCSA",
+    # Slint is triple-licensed: GPL-3.0-only OR one of these two
+    # commercial-friendly options. We don't want the GPL clause to
+    # apply, so allow the LicenseRef-* terms instead. Any crate that
+    # ships with the Slint triple-license string satisfies cargo-deny
+    # via the OR if at least one of these is on the allow list.
+    "LicenseRef-Slint-Royalty-free-2.0",
+    "LicenseRef-Slint-Software-3.0",
 ]
 confidence-threshold = 0.8
 

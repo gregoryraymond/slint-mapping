@@ -70,6 +70,13 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+/// Shared, thread-safe slot for an optional zero-arg callback fired
+/// when a tile finishes loading + decoding. Wrapped in `Arc<Mutex<..>>`
+/// so the worker threads can swap it without locking the holder; the
+/// inner `Arc<dyn Fn>` lets the worker clone the closure out before
+/// calling it (no callback executes while the mutex is held).
+type TileReadyCallback = Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>>;
+
 pub const OSM_TILE_URL: &str = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 /// Default number of parallel HTTP workers. OSM's tile usage policy
@@ -161,7 +168,7 @@ pub struct OsmTileSource {
     /// matter, so one thread keeps the model simple.
     decode_queue: Arc<WorkQueue<DecodeJob>>,
     in_flight: Arc<Mutex<HashSet<TileKey>>>,
-    on_tile_ready: Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>>,
+    on_tile_ready: TileReadyCallback,
     /// Owned for unparking from the worker threads.
     notifier_handle: Mutex<Option<JoinHandle<()>>>,
     /// Owned so we can join on drop (currently we just let the OS reap
@@ -198,8 +205,7 @@ impl OsmTileSource {
         // tile that genuinely isn't on the upstream tile server doesn't
         // generate a fetch storm every refresh.
         let failed: Arc<Mutex<HashSet<TileKey>>> = Arc::new(Mutex::new(HashSet::new()));
-        let on_tile_ready: Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>> =
-            Arc::new(Mutex::new(None));
+        let on_tile_ready: TileReadyCallback = Arc::new(Mutex::new(None));
         let memory: Arc<Mutex<HashMap<TileKey, SharedPixelBuffer<Rgba8Pixel>>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let request_interval = Arc::new(AtomicU64::new(300));

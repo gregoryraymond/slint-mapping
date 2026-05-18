@@ -1,0 +1,17 @@
+# cargo-audit configuration. Mirrors the `[advisories.ignore]` block
+# in deny.toml because the two tools maintain separate ignore lists
+# (cargo-audit doesn't read deny.toml). Keep them in sync — whenever
+# you add an ignore here, copy it to deny.toml too, and vice versa.
+#
+# See `https://rustsec.org/cargo-audit/` for the schema.
+
+[advisories]
+ignore = [
+    # `paste` is no longer maintained — transitively via image-decoding
+    # chain (image → ravif → rav1e → paste). Not exploitable.
+    "RUSTSEC-2024-0436",
+    # `bincode` 2.x marked unmaintained 2025-12-16 — transitively via
+    # i-slint-compiler → typed-index-collections → bincode. Not
+    # exploitable; deep in Slint's compile chain, no safe upgrade.
+    "RUSTSEC-2025-0141",
+]

@@ -1,4 +1,4 @@
-//! Concrete [`Router`](crate::Router) implementations.
+//! Concrete [`crate::Router`] implementations.
 //!
 //! Each adapter lives in its own submodule and is re-exported at this
 //! module's root. Adding a new routing engine = drop a file in this

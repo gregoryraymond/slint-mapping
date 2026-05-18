@@ -121,6 +121,10 @@ pub fn visible_tiles(
 /// viewport's top-left. Values can fall outside `[0, viewport_width]` /
 /// `[0, viewport_height]` for points that are off-screen — callers
 /// that want to cull should filter on those bounds.
+// Pure projection: every parameter is a meaningful coordinate that
+// shows up in the math directly. Bundling them into a struct would
+// add an indirection at every call site for no clarity win.
+#[allow(clippy::too_many_arguments)]
 pub fn lonlat_to_viewport_px(
     lon: f64,
     lat: f64,
@@ -145,6 +149,7 @@ pub fn lonlat_to_viewport_px(
 /// Used at the start of a zoom burst to lock the anchor's lon/lat —
 /// see [`center_for_anchor_at_viewport_px`] for the corresponding
 /// "place this lon/lat at this pixel" step.
+#[allow(clippy::too_many_arguments)]
 pub fn viewport_px_to_lonlat(
     px: f64,
     py: f64,
@@ -169,6 +174,7 @@ pub fn viewport_px_to_lonlat(
 /// gesture against a single anchor captured at burst-start, so the
 /// camera doesn't drift between scroll-events as it would if the
 /// anchor's geographic position were re-derived each event.
+#[allow(clippy::too_many_arguments)]
 pub fn center_for_anchor_at_viewport_px(
     anchor_lon: f64,
     anchor_lat: f64,

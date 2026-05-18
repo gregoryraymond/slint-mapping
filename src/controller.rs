@@ -1,5 +1,5 @@
 //! [`MapController`] — wires a Slint `MapView` instance to a
-//! [`TileSource`](crate::TileSource).
+//! [`TileSource`].
 //!
 //! The controller:
 //! 1. Owns the active tile source (boxed, so it's swappable at
