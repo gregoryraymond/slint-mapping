@@ -48,8 +48,26 @@ install-publish-tools:
     cargo install --locked trunk
 
 # Detect breaking API changes since the last released version.
+# Skips cleanly on the very first publish (no baseline on crates.io
+# yet) — cargo-semver-checks errors with "<crate> not found in
+# registry" which we detect here and turn into a no-op. After the
+# first release the recipe runs normally.
 semver-check:
-    cargo semver-checks check-release
+    #!/usr/bin/env bash
+    set -eo pipefail
+    log=$(mktemp)
+    # `pipefail` makes the `if` see the cargo exit code (not tee's
+    # always-zero), so a real failure routes to the elif/else branch.
+    if cargo semver-checks check-release 2>&1 | tee "$log"; then
+        rm -f "$log"
+    elif grep -q "not found in registry" "$log"; then
+        rm -f "$log"
+        echo
+        echo "semver-check skipped: slint-mapping has no published baseline yet"
+    else
+        rm -f "$log"
+        exit 1
+    fi
 
 # Scan deps for known CVEs (RustSec advisory database).
 audit:

@@ -10,4 +10,11 @@ ignore = [
     # `paste` is no longer maintained — transitively via image-decoding
     # chain (image → ravif → rav1e → paste). Not exploitable.
     "RUSTSEC-2024-0436",
+    # `bincode` 2.x marked unmaintained 2025-12-16 — transitively via
+    # i-slint-compiler → typed-index-collections → bincode. cargo-audit
+    # sees it (lockfile scan) so it shows up here; cargo-deny doesn't
+    # (runtime-dep scan), so deny.toml deliberately doesn't list it
+    # (it would warn "no crate matched advisory criteria" instead).
+    # Not exploitable; revisit when the Slint crates retire bincode.
+    "RUSTSEC-2025-0141",
 ]
