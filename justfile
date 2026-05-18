@@ -111,8 +111,12 @@ publish-dry:
 
 # Bump version + tag + push + publish via cargo-release (run publish-check first).
 # Examples: `just release patch` (0.1.0 → 0.1.1), `just release minor`, `just release 0.3.0`.
+# CARGO_HTTP_DEBUG=true surfaces the actual HTTP response body when
+# crates.io rejects the upload — without it, cargo cuts off useful
+# errors like "verified email required" or "name reserved" and you
+# get a near-empty `body:` line in the output instead.
 release LEVEL="patch":
-    cargo release {{LEVEL}} --execute
+    CARGO_HTTP_DEBUG=true cargo release {{LEVEL}} --execute
 
 ## ─── Local wasm preview ────────────────────────────────────────────
 ##
