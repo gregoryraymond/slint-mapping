@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Browser demo for slint-mapping — pan/zoom OSM tiles + marker + polyline overlays compiled to wasm."
+repository = "https://github.com/gregoryraymond/slint-mapping"
+readme = "README.md"
 publish = false
 
 # cdylib is what wasm-pack needs to emit the .wasm file; rlib lets
