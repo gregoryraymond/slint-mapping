@@ -53,8 +53,25 @@ serde_json = { version = "1", optional = true }
 # them. The actual feature gate is in [features] below.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2", optional = true }
-wasm-bindgen-futures = { version = "0.4", optional = true }
-gloo-net = { version = "0.5", default-features = false, features = ["http"], optional = true }
+js-sys = { version = "0.3", optional = true }
+# web-sys with the exact API surface our fetch path needs. Replaces
+# gloo-net 0.5 — the gloo wrapper was hitting the "FnOnce called
+# more than once" + index-out-of-bounds cascade in `js-sys`'s
+# JsFuture under Firefox (its Promise→then handler chain was
+# triggering closure double-invocation). web-sys's fetch is the
+# same Promise but with one less layer of indirection; less surface
+# area for the bug to surface across.
+web-sys = { version = "0.3", optional = true, features = [
+    "Window",
+    "XmlHttpRequest",
+    "XmlHttpRequestResponseType",
+] }
+# Bounded LRU for the in-browser tile cache. Without it,
+# WasmOsmTileSource's HashMap grows forever — each 256x256 RGBA tile
+# is 256 KB, and a few minutes of panning leaks hundreds of MB and
+# eventually freezes the tab. lru is a tiny dep (~6 KB compiled) with
+# no transitive cost.
+lru = { version = "0.12", optional = true }
 # Lets us store a `!Send` closure (e.g. one that captures `Rc<…>`) in
 # a struct that needs to satisfy `Send + Sync` for the TileSource
 # trait. SendWrapper is safe on single-threaded wasm because every
@@ -84,12 +101,19 @@ http = ["dep:ureq", "dep:image"]
 # rendering doesn't pull serde derive into their build.
 routing = ["dep:ureq", "dep:serde", "dep:serde_json"]
 # Enables WasmOsmTileSource — a browser-side OSM tile source that
-# uses gloo-net + wasm_bindgen_futures::spawn_local instead of ureq
-# + std::thread. Mutually exclusive with `http` in practice (ureq
-# doesn't compile to wasm32-unknown-unknown), but they don't conflict
-# at the Cargo level — leaving both on a wasm build just brings in
-# the dead native code in `osm.rs`.
-wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:gloo-net", "dep:send_wrapper", "dep:image"]
+# uses web-sys's fetch + wasm_bindgen_futures::spawn_local instead of
+# ureq + std::thread. Off by default; the mobile (Android) target
+# never wants any of this. Mutually exclusive in practice with `http`
+# (ureq doesn't compile to wasm32-unknown-unknown), but they don't
+# conflict at the Cargo level — leaving both on a wasm build just
+# brings in the dead native code in `osm.rs`.
+#
+# Every dependency this pulls is additionally gated by
+# `[target.'cfg(target_arch = "wasm32")']` in this Cargo.toml, plus
+# `#[cfg(all(feature = "wasm", target_arch = "wasm32"))]` on
+# `src/sources/wasm_osm.rs`. Triple-gated: a native cargo build with
+# `--features wasm` accidentally on still pulls zero wasm crates.
+wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys", "dep:send_wrapper", "dep:image", "dep:lru"]
 
 [[example]]
 name = "viewer"
